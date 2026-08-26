@@ -69,6 +69,30 @@ function kindGroup(kind) {
   return meta ? meta.group : "Other"
 }
 
+function kindNeedsApiKey(kind) {
+  var k = kindOf(kind)
+  return k === "sonarr" || k === "radarr" || k === "sabnzbd"
+}
+
+function kindNeedsUserPass(kind) {
+  return kindOf(kind) === "qbittorrent"
+}
+
+function uniqueServiceName(services, kind, ignoreId) {
+  var base = kindLabel(kind)
+  var list = Array.isArray(services) ? services : []
+  var skip = String(ignoreId || "")
+  var used = {}
+  for (var i = 0; i < list.length; i++) {
+    if (skip && String(list[i].id || "") === skip) continue
+    used[String(list[i].name || "")] = true
+  }
+  if (!used[base]) return base
+  var n = 2
+  while (used[base + " " + n]) n++
+  return base + " " + n
+}
+
 function defaultUrlForKind(kind) {
   var meta = KIND_DEFAULTS[kindOf(kind)] || KIND_DEFAULTS.generic
   return "http://127.0.0.1:" + meta.port
@@ -124,6 +148,7 @@ function normalizeSettings(raw) {
   for (var i = 0; i < services.length; i++) out.push(normalizeService(services[i], i))
   out.sort(function(a, b) { return a.order - b.order })
   for (var j = 0; j < out.length; j++) out[j].order = j
+  uniquifyIds(out)
   base.services = out
   base.pollSeconds = clampPoll(data.pollSeconds)
   base.density = String(data.density || "") === "compact" ? "compact" : "comfortable"
@@ -170,6 +195,32 @@ function settingsPayload(settings) {
     showQueue: data.showQueue,
     services: data.services
   }
+}
+
+function uniquifyIds(services) {
+  var list = Array.isArray(services) ? services : []
+  var used = {}
+  for (var i = 0; i < list.length; i++) {
+    var id = String(list[i].id || "")
+    if (!id || used[id]) {
+      var max = 0
+      for (var key in used) {
+        var taken = String(key || "").match(/^svc-(\d+)$/)
+        if (taken) max = Math.max(max, parseInt(taken[1], 10))
+      }
+      for (var j = 0; j < list.length; j++) {
+        if (j === i) continue
+        var other = String(list[j].id || "")
+        if (used[other]) continue
+        var later = other.match(/^svc-(\d+)$/)
+        if (later) max = Math.max(max, parseInt(later[1], 10))
+      }
+      id = "svc-" + (max + 1)
+      list[i].id = id
+    }
+    used[id] = true
+  }
+  return list
 }
 
 function newServiceId(services) {
@@ -1050,6 +1101,9 @@ if (typeof module !== "undefined" && module.exports) {
     kindOf: kindOf,
     kindLabel: kindLabel,
     kindGroup: kindGroup,
+    kindNeedsApiKey: kindNeedsApiKey,
+    kindNeedsUserPass: kindNeedsUserPass,
+    uniqueServiceName: uniqueServiceName,
     defaultUrlForKind: defaultUrlForKind,
     defaultSettings: defaultSettings,
     normalizeService: normalizeService,

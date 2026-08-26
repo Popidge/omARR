@@ -81,6 +81,34 @@ checkEqual(s1.services.length, 1, "add service")
 checkEqual(s1.services[0].name, "Sonarr", "kind default name")
 var s2 = Model.addService(s1, { kind: "radarr", url: "http://127.0.0.1:7878" })
 checkEqual(s2.services.length, 2, "second service")
+var twoSonarr = Model.addService(s1, { kind: "sonarr", url: "http://192.168.2.200:8989", name: "Sonarr 4K" })
+checkEqual(twoSonarr.services.length, 2, "two sonarrs")
+checkEqual(twoSonarr.services[0].kind, "sonarr", "first remains sonarr")
+checkEqual(twoSonarr.services[1].kind, "sonarr", "second is sonarr")
+check(twoSonarr.services[0].id !== twoSonarr.services[1].id, "sonarrs get distinct ids")
+var twoKeys = Model.setCredential({}, twoSonarr.services[0].id, { apiKey: "aaa" })
+twoKeys = Model.setCredential(twoKeys, twoSonarr.services[1].id, { apiKey: "bbb" })
+checkEqual(Model.credentialFor(twoKeys, twoSonarr.services[0].id).apiKey, "aaa", "first sonarr key")
+checkEqual(Model.credentialFor(twoKeys, twoSonarr.services[1].id).apiKey, "bbb", "second sonarr key")
+
+check(Model.kindNeedsApiKey("sonarr") && Model.kindNeedsApiKey("radarr") && Model.kindNeedsApiKey("sabnzbd"), "arr/sab need api key")
+check(!Model.kindNeedsApiKey("generic") && !Model.kindNeedsApiKey("qbittorrent"), "generic/qbit no api key")
+check(Model.kindNeedsUserPass("qbittorrent"), "qbit needs user/pass")
+check(!Model.kindNeedsUserPass("sonarr"), "sonarr no user/pass")
+checkEqual(Model.uniqueServiceName([], "sonarr"), "Sonarr", "first sonarr name")
+checkEqual(Model.uniqueServiceName(s1.services, "sonarr"), "Sonarr 2", "second sonarr name")
+checkEqual(Model.uniqueServiceName(twoSonarr.services, "sonarr"), "Sonarr 2", "third default skips 4K custom")
+
+var collided = Model.normalizeSettings({
+  services: [
+    { id: "svc-2", kind: "sonarr", url: "http://a:8989" },
+    { kind: "sonarr", url: "http://b:8989" }
+  ]
+})
+checkEqual(collided.services.length, 2, "colliding ids kept both")
+check(collided.services[0].id !== collided.services[1].id, "normalize uniquifies ids")
+checkEqual(collided.services[0].kind, "sonarr", "collided first kind")
+checkEqual(collided.services[1].kind, "sonarr", "collided second kind")
 var s3 = Model.updateService(s2, s2.services[0].id, { name: "TV" })
 checkEqual(s3.services[0].name, "TV", "rename")
 var s4 = Model.moveService(s3, s3.services[0].id, 1)

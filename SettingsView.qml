@@ -26,13 +26,18 @@ Column {
   property bool formNotifyDownload: true
   property bool formNotifyHealth: true
 
-  readonly property bool needsKey: formKind === "sonarr" || formKind === "radarr" || formKind === "sabnzbd"
-  readonly property bool needsUser: formKind === "qbittorrent"
+  readonly property bool needsKey: Model.kindNeedsApiKey(formKind)
+  readonly property bool needsUser: Model.kindNeedsUserPass(formKind)
 
   signal closeSettings()
 
+  function setFormKind(kind) {
+    formKind = Model.kindOf(kind)
+    kindBox.value = formKind
+  }
+
   function resetForm() {
-    formKind = "generic"
+    setFormKind("generic")
     nameField.text = ""
     urlField.text = Model.defaultUrlForKind("generic")
     groupField.text = "Other"
@@ -46,11 +51,15 @@ Column {
   }
 
   function fillKind(kind) {
-    formKind = Model.kindOf(kind)
-    if (!nameField.text) nameField.text = Model.kindLabel(formKind)
+    var previous = formKind
+    setFormKind(kind)
+    var prevLabel = Model.kindLabel(previous)
+    if (!nameField.text || nameField.text === prevLabel)
+      nameField.text = Model.uniqueServiceName(root.services, formKind, editingId)
     if (!urlField.text || urlField.text.indexOf("127.0.0.1") !== -1)
       urlField.text = Model.defaultUrlForKind(formKind)
-    if (!groupField.text) groupField.text = Model.kindGroup(formKind)
+    if (!groupField.text || groupField.text === Model.kindGroup(previous))
+      groupField.text = Model.kindGroup(formKind)
   }
 
   function startAdd() {
@@ -62,7 +71,7 @@ Column {
     if (!row) return
     mode = "edit"
     editingId = row.id
-    formKind = row.kind
+    setFormKind(row.kind)
     nameField.text = row.name
     urlField.text = row.url
     groupField.text = row.group
@@ -100,8 +109,8 @@ Column {
 
   function applyScan(hit) {
     startAdd()
-    formKind = hit.kind
-    nameField.text = hit.name
+    setFormKind(hit.kind)
+    nameField.text = Model.uniqueServiceName(root.services, formKind)
     urlField.text = hit.url
     groupField.text = Model.kindGroup(hit.kind)
   }
