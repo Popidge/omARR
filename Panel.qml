@@ -6,7 +6,7 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "io.github.del.omarr"
+  moduleName: "io.github.luccast.omarr"
   manageIpc: false
 
   property var anchorItem: null

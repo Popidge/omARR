@@ -1,4 +1,4 @@
-var PLUGIN_ID = "io.github.del.omarr"
+var PLUGIN_ID = "io.github.luccast.omarr"
 var API_MAX_BYTES = 2 * 1024 * 1024
 var IMAGE_MAX_BYTES = 8 * 1024 * 1024
 var SEEN_LIMIT = 400

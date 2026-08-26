@@ -21,7 +21,7 @@ function checkEqual(actual, expected, msg) {
   }
 }
 
-checkEqual(Model.PLUGIN_ID, "io.github.del.omarr", "plugin id")
+checkEqual(Model.PLUGIN_ID, "io.github.luccast.omarr", "plugin id")
 checkEqual(Model.API_MAX_BYTES, 2 * 1024 * 1024, "api max")
 check(Model.curlBounds(0).join(" ") === "--max-time 8 --max-filesize 2097152", "curl bounds fallback")
 check(Model.curlBounds(Model.IMAGE_MAX_BYTES).indexOf("8388608") !== -1, "image bounds")

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.del.omarr",
+  "id": "io.github.luccast.omarr",
   "name": "omARR",
   "version": "1.0.0",
-  "author": "del",
+  "author": "luccast",
   "license": "MIT",
   "description": "A radar-room panel for locally hosted services, with live Sonarr, Radarr, SABnzbd, and qBittorrent controls.",
   "kinds": [

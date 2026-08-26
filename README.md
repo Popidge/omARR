@@ -15,10 +15,10 @@ omarchy plugin add https://github.com/luccast/omARR.git --enable
 The widget lands on the right side of the bar. Move it with:
 
 ```sh
-omarchy bar move io.github.del.omarr
+omarchy bar move io.github.luccast.omarr
 ```
 
-Update later with `omarchy plugin update io.github.del.omarr`.
+Update later with `omarchy plugin update io.github.luccast.omarr`.
 
 ## Use
 
@@ -51,7 +51,7 @@ Layout (names, URLs, groups, order, notification flags, poll interval, density) 
 ## Remove
 
 ```sh
-omarchy plugin remove io.github.del.omarr
+omarchy plugin remove io.github.luccast.omarr
 ```
 
 ## Develop
