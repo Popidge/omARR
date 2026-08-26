@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.del.omarr",
+  "name": "omARR",
+  "version": "1.0.0",
+  "author": "del",
+  "license": "MIT",
+  "description": "A radar-room panel for locally hosted services, with live Sonarr, Radarr, SABnzbd, and qBittorrent controls.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "omARR",
+    "description": "Homelab command center for the bar — health, queues, calendar, and downloads",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
