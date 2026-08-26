@@ -42,6 +42,7 @@ Item {
   property var currentReq: null
   property bool writingFiles: false
   property var snapshotMap: ({})
+  property var healthMisses: ({})
 
   function cookiePath(id) {
     return cacheDir + "/qbit-" + String(id || "").replace(/[^A-Za-z0-9._-]/g, "_") + ".cookies"
@@ -136,15 +137,17 @@ Item {
 
   function startReq(req) {
     root.currentReq = req
-    var chmod = ["chmod", "600"]
     if (req.headerText) {
       headerFile.setText(req.headerText)
-      chmod.push(root.headerPath)
+      headerFile.waitForJob()
     }
     if (req.bodyText) {
       bodyFile.setText(req.bodyText)
-      chmod.push(root.bodyPath)
+      bodyFile.waitForJob()
     }
+    var chmod = ["chmod", "600"]
+    if (req.headerText) chmod.push(root.headerPath)
+    if (req.bodyText) chmod.push(root.bodyPath)
     if (chmod.length > 2) {
       root.writingFiles = true
       chmodProc.command = chmod
@@ -152,6 +155,25 @@ Item {
       return
     }
     root.runCurl(req)
+  }
+
+  function setHealthMisses(id, n) {
+    var next = {}
+    for (var key in root.healthMisses) next[key] = root.healthMisses[key]
+    next[String(id)] = n
+    root.healthMisses = next
+  }
+
+  function commitHealth(service, snap, statusCode) {
+    var decision = Model.decideHealth(
+      root.snapshotFor(service).health,
+      statusCode,
+      root.healthMisses[service.id] || 0
+    )
+    root.setHealthMisses(service.id, decision.misses)
+    if (!decision.commit) return false
+    root.commitSnapshot(Model.applyHttpHealth(snap, statusCode), service)
+    return true
   }
 
   function runCurl(req) {
@@ -278,10 +300,17 @@ Item {
     }
     var snap = root.cloneSnap(root.snapshotFor(service))
     if (req.kind === "generic") {
-      root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
+      root.commitHealth(service, snap, parsed.status)
       return
     }
     if (req.kind === "arr-status") {
+      var arrDecision = Model.decideHealth(
+        root.snapshotFor(service).health,
+        parsed.status,
+        root.healthMisses[service.id] || 0
+      )
+      root.setHealthMisses(service.id, arrDecision.misses)
+      if (!arrDecision.commit) return
       if (parsed.status < 200 || parsed.status >= 400) {
         root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
         return
@@ -318,10 +347,11 @@ Item {
     }
     if (req.kind === "sab-queue") {
       if (parsed.status < 200 || parsed.status >= 400) {
-        root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
+        root.commitHealth(service, snap, parsed.status)
         return
       }
       var sab = Model.parseSabQueue(parsed.body)
+      root.setHealthMisses(service.id, 0)
       snap = Model.applyHttpHealth(snap, parsed.status)
       snap.paused = sab.paused
       snap.speed = sab.speed
@@ -345,7 +375,7 @@ Item {
       if (ready[service.id]) {
         root.enqueueQbit(service, true)
       } else {
-        root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status || 401), service)
+        root.commitHealth(service, snap, parsed.status || 401)
       }
       return
     }
@@ -359,9 +389,10 @@ Item {
         return
       }
       if (parsed.status < 200 || parsed.status >= 400) {
-        root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
+        root.commitHealth(service, snap, parsed.status)
         return
       }
+      root.setHealthMisses(service.id, 0)
       snap = Model.applyHttpHealth(snap, parsed.status)
       snap.queue = Model.parseQbitTorrents(parsed.body)
       root.commitSnapshot(snap, service)
@@ -381,13 +412,13 @@ Item {
 
   function handleFailure() {
     var req = root.currentReq
-    if (!req || req.kind === "scan" || req.kind === "poster" || req.kind === "command") return
+    if (!req || !Model.isHealthKind(req.kind)) return
     var service = null
     for (var i = 0; i < root.services.length; i++) {
       if (root.services[i].id === req.serviceId) service = root.services[i]
     }
     if (!service) return
-    root.commitSnapshot(Model.applyHttpHealth(root.snapshotFor(service), 0), service)
+    root.commitHealth(service, root.cloneSnap(root.snapshotFor(service)), 0)
   }
 
   function handleScan(req, status) {
@@ -639,6 +670,7 @@ Item {
     path: root.headerPath
     watchChanges: false
     atomicWrites: true
+    blockWrites: true
     printErrors: false
   }
 
@@ -647,6 +679,7 @@ Item {
     path: root.bodyPath
     watchChanges: false
     atomicWrites: true
+    blockWrites: true
     printErrors: false
   }
 

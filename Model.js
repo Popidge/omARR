@@ -39,7 +39,7 @@ var SCAN_TARGETS = [
 function curlBounds(maxBytes) {
   var n = parseInt(maxBytes, 10)
   if (!(n > 0)) n = API_MAX_BYTES
-  return ["--max-time", "8", "--max-filesize", String(n)]
+  return ["--connect-timeout", "4", "--max-time", "20", "--max-filesize", String(n)]
 }
 
 function scanCurlBounds() {
@@ -726,6 +726,22 @@ function applyHttpHealth(snapshot, statusCode) {
   return copy
 }
 
+function isHealthKind(kind) {
+  var k = String(kind || "")
+  return k === "arr-status" || k === "sab-queue" || k === "generic"
+    || k === "qbit-torrents" || k === "qbit-login"
+}
+
+function decideHealth(previousHealth, statusCode, missCount) {
+  var code = parseInt(statusCode, 10) || 0
+  if (code >= 200 && code < 400) return { health: "up", misses: 0, commit: true }
+  var misses = (parseInt(missCount, 10) || 0) + 1
+  var hard = code === 401 || code === 403
+  if (!hard && previousHealth === "up" && misses < 2)
+    return { health: "up", misses: misses, commit: false }
+  return { health: "down", misses: misses, commit: true }
+}
+
 function isActiveDownload(item) {
   if (!item) return false
   var status = String(item.status || "").toLowerCase()
@@ -1154,6 +1170,8 @@ if (typeof module !== "undefined" && module.exports) {
     qbitResumeAllUrl: qbitResumeAllUrl,
     emptySnapshot: emptySnapshot,
     applyHttpHealth: applyHttpHealth,
+    isHealthKind: isHealthKind,
+    decideHealth: decideHealth,
     isActiveDownload: isActiveDownload,
     mergeNow: mergeNow,
     fleetLine: fleetLine,
