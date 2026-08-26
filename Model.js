@@ -69,6 +69,11 @@ function kindGroup(kind) {
   return meta ? meta.group : "Other"
 }
 
+function normalizeGroup(value, fallback) {
+  if (value === undefined || value === null) return String(fallback || "")
+  return String(value).replace(/^\s+|\s+$/g, "")
+}
+
 function kindNeedsApiKey(kind) {
   var k = kindOf(kind)
   return k === "sonarr" || k === "radarr" || k === "sabnzbd"
@@ -131,7 +136,9 @@ function normalizeService(entry, index) {
     kind: kind,
     name: String(raw.name || meta.name),
     url: url,
-    group: String(raw.group || meta.group),
+    group: Object.prototype.hasOwnProperty.call(raw, "group")
+      ? normalizeGroup(raw.group, "")
+      : String(meta.group),
     order: order,
     notifyGrab: raw.notifyGrab !== false,
     notifyImport: raw.notifyImport !== false,
@@ -282,30 +289,66 @@ function moveService(settings, id, delta) {
     if (data.services[i].id === key) index = i
   }
   if (index < 0) return data
-  var target = index + shift
-  if (target < 0) target = 0
-  if (target >= data.services.length) target = data.services.length - 1
-  if (target === index) return data
-  var item = data.services.splice(index, 1)[0]
-  data.services.splice(target, 0, item)
+  var group = data.services[index].group
+  var peers = []
+  for (var p = 0; p < data.services.length; p++) {
+    if (data.services[p].group === group) peers.push(p)
+  }
+  var at = -1
+  for (var a = 0; a < peers.length; a++) if (peers[a] === index) at = a
+  var destAt = at + shift
+  if (destAt < 0 || destAt >= peers.length) return data
+  var target = peers[destAt]
+  var tmpOrder = data.services[index].order
+  data.services[index].order = data.services[target].order
+  data.services[target].order = tmpOrder
+  data.services.sort(function(x, y) { return x.order - y.order })
   for (var j = 0; j < data.services.length; j++) data.services[j].order = j
   return data
 }
 
 function groupedServices(services) {
   var list = Array.isArray(services) ? services.slice() : []
-  list.sort(function(a, b) { return (a.order || 0) - (b.order || 0) })
-  var groups = []
-  var index = {}
+  var buckets = {}
+  var names = []
   for (var i = 0; i < list.length; i++) {
-    var name = String(list[i].group || "Other")
-    if (index[name] === undefined) {
-      index[name] = groups.length
-      groups.push({ group: name, services: [] })
+    var name = normalizeGroup(list[i].group, "")
+    if (!buckets[name]) {
+      buckets[name] = []
+      names.push(name)
     }
-    groups[index[name]].services.push(list[i])
+    buckets[name].push(list[i])
+  }
+  names.sort(function(a, b) {
+    if (!a && !b) return 0
+    if (!a) return 1
+    if (!b) return -1
+    var left = a.toLowerCase()
+    var right = b.toLowerCase()
+    if (left < right) return -1
+    if (left > right) return 1
+    return 0
+  })
+  var groups = []
+  for (var n = 0; n < names.length; n++) {
+    var members = buckets[names[n]].slice()
+    members.sort(function(a, b) { return (a.order || 0) - (b.order || 0) })
+    groups.push({ group: names[n], services: members })
   }
   return groups
+}
+
+function applyServiceMeta(snapshot, service) {
+  var prev = snapshot && typeof snapshot === "object" ? snapshot : {}
+  var copy = emptySnapshot(prev)
+  for (var key in prev) copy[key] = prev[key]
+  var svc = service && typeof service === "object" ? service : {}
+  if (svc.id) copy.id = String(svc.id)
+  if (svc.kind) copy.kind = kindOf(svc.kind)
+  if (svc.name !== undefined && svc.name !== null) copy.name = String(svc.name)
+  if (svc.url !== undefined && svc.url !== null) copy.url = String(svc.url)
+  if (Object.prototype.hasOwnProperty.call(svc, "group")) copy.group = normalizeGroup(svc.group, "")
+  return copy
 }
 
 function parseCredentials(raw) {
@@ -1117,6 +1160,7 @@ if (typeof module !== "undefined" && module.exports) {
     kindOf: kindOf,
     kindLabel: kindLabel,
     kindGroup: kindGroup,
+    normalizeGroup: normalizeGroup,
     kindNeedsApiKey: kindNeedsApiKey,
     kindNeedsUserPass: kindNeedsUserPass,
     uniqueServiceName: uniqueServiceName,
@@ -1132,6 +1176,7 @@ if (typeof module !== "undefined" && module.exports) {
     removeService: removeService,
     moveService: moveService,
     groupedServices: groupedServices,
+    applyServiceMeta: applyServiceMeta,
     parseCredentials: parseCredentials,
     serializeCredentials: serializeCredentials,
     credentialFor: credentialFor,

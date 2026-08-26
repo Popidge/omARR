@@ -235,7 +235,7 @@ Item {
     var list = []
     for (var i = 0; i < root.services.length; i++) {
       var svc = root.services[i]
-      list.push(root.snapshotMap[svc.id] || Model.emptySnapshot(svc))
+      list.push(Model.applyServiceMeta(root.snapshotMap[svc.id] || Model.emptySnapshot(svc), svc))
     }
     root.snapshots = list
     root.refreshDerived()
@@ -245,7 +245,7 @@ Item {
     var map = {}
     for (var i = 0; i < root.services.length; i++) {
       var svc = root.services[i]
-      map[svc.id] = root.snapshotMap[svc.id] || Model.emptySnapshot(svc)
+      map[svc.id] = Model.applyServiceMeta(root.snapshotMap[svc.id] || Model.emptySnapshot(svc), svc)
     }
     root.snapshotMap = map
     root.rebuildSnapshotList()
@@ -298,7 +298,7 @@ Item {
       if (parsed.status >= 200 && parsed.status < 400) root.posterRevision += 1
       return
     }
-    var snap = root.cloneSnap(root.snapshotFor(service))
+    var snap = Model.applyServiceMeta(root.cloneSnap(root.snapshotFor(service)), service)
     if (req.kind === "generic") {
       root.commitHealth(service, snap, parsed.status)
       return

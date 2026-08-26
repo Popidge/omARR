@@ -40,7 +40,7 @@ Column {
     setFormKind("generic")
     nameField.text = ""
     urlField.text = Model.defaultUrlForKind("generic")
-    groupField.text = "Other"
+    groupField.text = ""
     apiField.text = ""
     userField.text = ""
     passField.text = ""
@@ -58,7 +58,7 @@ Column {
       nameField.text = Model.uniqueServiceName(root.services, formKind, editingId)
     if (!urlField.text || urlField.text.indexOf("127.0.0.1") !== -1)
       urlField.text = Model.defaultUrlForKind(formKind)
-    if (!groupField.text || groupField.text === Model.kindGroup(previous))
+    if (!root.editingId && (!groupField.text || groupField.text === Model.kindGroup(previous)))
       groupField.text = Model.kindGroup(formKind)
   }
 
@@ -90,7 +90,7 @@ Column {
       kind: formKind,
       name: nameField.text,
       url: urlField.text,
-      group: groupField.text,
+      group: Model.normalizeGroup(groupField.text, ""),
       notifyGrab: formNotifyGrab,
       notifyImport: formNotifyGrab,
       notifyDownload: formNotifyDownload,
@@ -312,83 +312,104 @@ Column {
     }
 
     Repeater {
-      model: root.services
+      model: Model.groupedServices(root.services)
 
-      CursorSurface {
-        id: svcRow
+      Column {
         required property var modelData
-        required property int index
         width: parent.width
-        implicitHeight: svcCol.implicitHeight + Style.space(10)
-        hasCursor: svcMouse.containsMouse
-        foreground: root.foreground
-        accent: Color.accent
+        spacing: Style.space(2)
 
-        MouseArea {
-          id: svcMouse
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.startEdit(svcRow.modelData)
+        Text {
+          visible: parent.modelData.group !== ""
+          width: parent.width
+          text: parent.modelData.group
+          color: root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          font.bold: true
+          textFormat: Text.PlainText
         }
 
-        Row {
-          anchors.fill: parent
-          anchors.margins: Style.space(6)
-          spacing: Style.space(6)
+        Repeater {
+          model: parent.modelData.services
 
-          Column {
-            id: svcCol
-            width: parent.width - Style.space(72)
-            spacing: Style.space(1)
+          CursorSurface {
+            id: svcRow
+            required property var modelData
+            required property int index
+            width: parent.width
+            implicitHeight: svcCol.implicitHeight + Style.space(10)
+            hasCursor: svcMouse.containsMouse
+            foreground: root.foreground
+            accent: Color.accent
 
-            Text {
-              width: parent.width
-              text: svcRow.modelData.name
-              color: root.foreground
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              font.bold: true
-              elide: Text.ElideRight
-              textFormat: Text.PlainText
+            MouseArea {
+              id: svcMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.startEdit(svcRow.modelData)
             }
 
-            Text {
-              width: parent.width
-              text: Model.kindLabel(svcRow.modelData.kind) + " · " + (svcRow.modelData.url || "no url")
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              elide: Text.ElideRight
-              textFormat: Text.PlainText
+            Row {
+              anchors.fill: parent
+              anchors.margins: Style.space(6)
+              spacing: Style.space(6)
+
+              Column {
+                id: svcCol
+                width: parent.width - Style.space(72)
+                spacing: Style.space(1)
+
+                Text {
+                  width: parent.width
+                  text: svcRow.modelData.name
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                  font.bold: true
+                  elide: Text.ElideRight
+                  textFormat: Text.PlainText
+                }
+
+                Text {
+                  width: parent.width
+                  text: Model.kindLabel(svcRow.modelData.kind) + " · " + (svcRow.modelData.url || "no url")
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  elide: Text.ElideRight
+                  textFormat: Text.PlainText
+                }
+              }
+
+              PanelActionButton {
+                iconText: "󰁝"
+                tooltipText: "Move up"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                enabled: svcRow.index > 0
+                onClicked: if (root.service) root.service.moveService(svcRow.modelData.id, -1)
+              }
+
+              PanelActionButton {
+                iconText: "󰁅"
+                tooltipText: "Move down"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                enabled: svcRow.index < svcRow.parent.modelData.services.length - 1
+                onClicked: if (root.service) root.service.moveService(svcRow.modelData.id, 1)
+              }
+
+              PanelActionButton {
+                iconText: "󰆴"
+                tooltipText: "Remove"
+                foreground: root.foreground
+                hoverColor: Color.urgent
+                fontFamily: root.fontFamily
+                onClicked: if (root.service) root.service.removeService(svcRow.modelData.id)
+              }
             }
-          }
-
-          PanelActionButton {
-            iconText: "󰁝"
-            tooltipText: "Move up"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            enabled: svcRow.index > 0
-            onClicked: if (root.service) root.service.moveService(svcRow.modelData.id, -1)
-          }
-
-          PanelActionButton {
-            iconText: "󰁅"
-            tooltipText: "Move down"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            enabled: svcRow.index < root.services.length - 1
-            onClicked: if (root.service) root.service.moveService(svcRow.modelData.id, 1)
-          }
-
-          PanelActionButton {
-            iconText: "󰆴"
-            tooltipText: "Remove"
-            foreground: root.foreground
-            hoverColor: Color.urgent
-            fontFamily: root.fontFamily
-            onClicked: if (root.service) root.service.removeService(svcRow.modelData.id)
           }
         }
       }
@@ -435,7 +456,7 @@ Column {
     TextField {
       id: groupField
       width: parent.width
-      placeholderText: "Group"
+      placeholderText: "Group (optional)"
       foreground: root.foreground
     }
 

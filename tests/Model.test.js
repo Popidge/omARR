@@ -127,6 +127,36 @@ checkEqual(grouped[0].group, "Media", "media first")
 checkEqual(grouped[0].services.length, 2, "media members")
 checkEqual(grouped[1].group, "Other", "other second")
 
+var blankGroup = Model.normalizeService({ kind: "sonarr", url: "http://s:8989", group: "" }, 0)
+checkEqual(blankGroup.group, "", "empty group is kept")
+checkEqual(Model.normalizeService({ kind: "sonarr", url: "http://s:8989", group: "  Night  " }, 0).group, "Night", "group trimmed")
+checkEqual(Model.normalizeService({ kind: "sonarr", url: "http://s:8989" }, 0).group, "Media", "missing group uses kind default")
+var cleared = Model.updateService({
+  services: [{ id: "svc-1", kind: "sonarr", url: "http://s:8989", group: "Other" }]
+}, "svc-1", { group: "" })
+checkEqual(cleared.services[0].group, "", "update can clear group")
+
+var regroup = Model.groupedServices([
+  { id: "a", group: "", order: 0, name: "Ungrouped" },
+  { id: "b", group: "Media", order: 2, name: "Later media" },
+  { id: "c", group: "Media", order: 1, name: "First media" },
+  { id: "d", group: "Downloads", order: 3, name: "SAB" }
+])
+checkEqual(regroup.length, 3, "named groups plus ungrouped")
+checkEqual(regroup[0].group, "Downloads", "groups sort alphabetically")
+checkEqual(regroup[1].group, "Media", "media after downloads")
+checkEqual(regroup[1].services[0].name, "First media", "within group by order")
+checkEqual(regroup[1].services[1].name, "Later media", "within group second")
+checkEqual(regroup[2].group, "", "ungrouped last")
+checkEqual(regroup[2].services[0].name, "Ungrouped", "ungrouped member")
+
+var stale = Model.emptySnapshot({ id: "svc-1", kind: "sonarr", name: "Old", url: "http://old", group: "Other" })
+stale.health = "up"
+var synced = Model.applyServiceMeta(stale, { id: "svc-1", kind: "sonarr", name: "Sonarr LQ", url: "http://new", group: "Media" })
+checkEqual(synced.group, "Media", "meta sync group")
+checkEqual(synced.name, "Sonarr LQ", "meta sync name")
+checkEqual(synced.health, "up", "meta sync keeps health")
+
 var creds = Model.parseCredentials('{"svc-1":{"apiKey":"abc"}}')
 checkEqual(Model.credentialFor(creds, "svc-1").apiKey, "abc", "cred read")
 var creds2 = Model.setCredential(creds, "svc-1", { username: "admin" })
