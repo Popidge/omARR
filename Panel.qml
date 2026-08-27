@@ -148,6 +148,21 @@ Panel {
     return "file://" + root.service.fanartPath(serviceId, posterId) + "?" + root.service.posterRevision
   }
 
+  function wheelDelta(event) {
+    if (!event) return 0
+    if (event.angleDelta && event.angleDelta.y)
+      return event.angleDelta.y / 100 * Style.space(120)
+    if (event.pixelDelta && event.pixelDelta.y)
+      return event.pixelDelta.y * 4
+    return 0
+  }
+
+  function scrollFlick(flick, dy) {
+    if (!flick || !(flick.contentHeight > flick.height) || !dy) return
+    var maxY = Math.max(0, flick.contentHeight - flick.height)
+    flick.contentY = Math.max(0, Math.min(maxY, flick.contentY - dy))
+  }
+
   onSnapshotsChanged: root.clampSelection()
 
   Component {
@@ -255,6 +270,7 @@ Panel {
             height: Math.max(0, parent.height - headerBar.height - parent.spacing)
 
             Flickable {
+              id: settingsFlick
               anchors.fill: parent
               visible: root.showSettings
               clip: true
@@ -264,6 +280,14 @@ Panel {
               flickableDirection: Flickable.VerticalFlick
               interactive: contentHeight > height
               ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+              WheelHandler {
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: function(event) {
+                  root.scrollFlick(settingsFlick, root.wheelDelta(event))
+                  event.accepted = true
+                }
+              }
 
               Loader {
                 id: settingsLoader
@@ -424,6 +448,14 @@ Panel {
               flickableDirection: Flickable.VerticalFlick
               interactive: contentHeight > height
               ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+              WheelHandler {
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: function(event) {
+                  root.scrollFlick(contentFlick, root.wheelDelta(event))
+                  event.accepted = true
+                }
+              }
 
               Column {
                 id: pane
