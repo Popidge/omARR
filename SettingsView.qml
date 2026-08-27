@@ -472,6 +472,7 @@ Column {
         { value: "generic", label: "Generic" },
         { value: "sonarr", label: "Sonarr" },
         { value: "radarr", label: "Radarr" },
+        { value: "plex", label: "Plex" },
         { value: "sabnzbd", label: "SABnzbd" },
         { value: "qbittorrent", label: "qBittorrent" }
       ]
@@ -505,7 +506,7 @@ Column {
       visible: root.needsKey
       height: visible ? implicitHeight : 0
       password: true
-      placeholderText: "API key"
+      placeholderText: root.formKind === "plex" ? "Plex token" : "API key"
       foreground: root.foreground
     }
 
@@ -530,9 +531,9 @@ Column {
 
     Toggle {
       width: parent.width
-      visible: root.formKind === "sonarr" || root.formKind === "radarr"
+      visible: root.formKind === "sonarr" || root.formKind === "radarr" || root.formKind === "plex"
       height: visible ? implicitHeight : 0
-      label: "Notify on grab"
+      label: root.formKind === "plex" ? "Notify on newly added" : "Notify on grab"
       checked: root.formNotifyGrab
       foreground: root.foreground
       fontFamily: root.fontFamily

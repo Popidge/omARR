@@ -6,14 +6,15 @@ var DEFAULT_POLL_SECONDS = 30
 var LIST_PAGE_SIZE = 20
 var PAGE_SIZE_MIN = 5
 var PAGE_SIZE_MAX = 50
-var KINDS = ["generic", "sonarr", "radarr", "sabnzbd", "qbittorrent"]
+var KINDS = ["generic", "sonarr", "radarr", "sabnzbd", "qbittorrent", "plex"]
 
 var KIND_DEFAULTS = {
   generic: { name: "Service", group: "Other", port: 80 },
   sonarr: { name: "Sonarr", group: "Media", port: 8989 },
   radarr: { name: "Radarr", group: "Media", port: 7878 },
   sabnzbd: { name: "SABnzbd", group: "Downloads", port: 8080 },
-  qbittorrent: { name: "qBittorrent", group: "Downloads", port: 8080 }
+  qbittorrent: { name: "qBittorrent", group: "Downloads", port: 8080 },
+  plex: { name: "Plex", group: "Media", port: 32400 }
 }
 
 var PORT_KINDS = {
@@ -21,7 +22,7 @@ var PORT_KINDS = {
   "7878": "radarr",
   "9696": "generic",
   "8096": "generic",
-  "32400": "generic",
+  "32400": "plex",
   "8123": "generic",
   "5055": "generic",
   "8080": "generic"
@@ -33,7 +34,7 @@ var SCAN_TARGETS = [
   { kind: "sabnzbd", port: 8080, name: "SABnzbd" },
   { kind: "qbittorrent", port: 8080, name: "qBittorrent" },
   { kind: "generic", port: 8096, name: "Jellyfin" },
-  { kind: "generic", port: 32400, name: "Plex" },
+  { kind: "plex", port: 32400, name: "Plex" },
   { kind: "generic", port: 8123, name: "Home Assistant" },
   { kind: "generic", port: 9696, name: "Prowlarr" },
   { kind: "generic", port: 5055, name: "Jellyseerr" }
@@ -79,7 +80,7 @@ function normalizeGroup(value, fallback) {
 
 function kindNeedsApiKey(kind) {
   var k = kindOf(kind)
-  return k === "sonarr" || k === "radarr" || k === "sabnzbd"
+  return k === "sonarr" || k === "radarr" || k === "sabnzbd" || k === "plex"
 }
 
 function kindNeedsUserPass(kind) {
@@ -1043,6 +1044,131 @@ function qbitResumeAllUrl(base) {
   return normalizeUrl(base) + "/api/v2/torrents/resume"
 }
 
+function headerPlex(token) {
+  return "X-Plex-Token: " + String(token || "") + "\nAccept: application/json\nX-Plex-Client-Identifier: " + PLUGIN_ID + "\n"
+}
+
+function curlHeaderConfig(headerText) {
+  var lines = String(headerText || "").split(/\r?\n/)
+  var out = []
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].replace(/^\s+|\s+$/g, "")
+    if (!line) continue
+    out.push("header = \"" + line.replace(/\\/g, "\\\\").replace(/"/g, "\\\"") + "\"")
+  }
+  return out.join("\n") + (out.length ? "\n" : "")
+}
+
+function headerIsConfig(headerText) {
+  return String(headerText || "").replace(/\n+$/, "").indexOf("\n") !== -1
+}
+
+function plexIdentityUrl(base) {
+  return normalizeUrl(base) + "/identity"
+}
+
+function plexSessionsUrl(base) {
+  return normalizeUrl(base) + "/status/sessions"
+}
+
+function plexOnDeckUrl(base) {
+  return normalizeUrl(base) + "/library/onDeck"
+}
+
+function plexRecentlyAddedUrl(base, pageSize) {
+  return normalizeUrl(base) + "/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=" + clampPageSize(pageSize)
+}
+
+function plexArtUrl(base, path) {
+  var p = String(path || "")
+  if (!p) return ""
+  if (p.indexOf("http://") === 0 || p.indexOf("https://") === 0) {
+    var root = normalizeUrl(base)
+    return p.indexOf(root) === 0 ? p : ""
+  }
+  return normalizeUrl(base) + (p.charAt(0) === "/" ? p : "/" + p)
+}
+
+function plexCachePath(cacheDir, serviceId, itemId) {
+  var safe = function(value) {
+    return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
+  }
+  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-plex.jpg"
+}
+
+function plexRecords(raw) {
+  var data = parseJson(raw, {})
+  var mc = data && data.MediaContainer ? data.MediaContainer : data
+  var rec = mc && mc.Metadata
+  if (Array.isArray(rec)) return rec
+  if (rec && typeof rec === "object") return [rec]
+  return []
+}
+
+function parsePlexIdentity(raw) {
+  var data = parseJson(raw, null)
+  var mc = data && data.MediaContainer ? data.MediaContainer : data
+  if (!mc || typeof mc !== "object") return { version: "", healthy: false }
+  return { version: String(mc.version || ""), healthy: true }
+}
+
+function parsePlexItem(row, asSession) {
+  var item = row && typeof row === "object" ? row : {}
+  var isEp = String(item.type || "") === "episode"
+  var duration = Number(item.duration) || 0
+  var offset = Number(item.viewOffset) || 0
+  var progress = duration > 0 ? Math.max(0, Math.min(1, offset / duration)) : 0
+  var title = isEp ? String(item.grandparentTitle || item.title || "") : String(item.title || "")
+  var subtitle = ""
+  if (isEp) subtitle = episodeCode(item.parentIndex, item.index) + (item.title ? " " + item.title : "")
+  else if (item.year) subtitle = String(item.year)
+  if (asSession) {
+    var user = item.User && item.User.title ? String(item.User.title) : ""
+    var player = item.Player && item.Player.title ? String(item.Player.title) : ""
+    var who = [user, player].filter(Boolean).join(" · ")
+    if (who) subtitle = subtitle ? subtitle + " · " + who : who
+  }
+  if (progress > 0 && progress < 1) {
+    var pct = formatProgress(progress)
+    subtitle = subtitle ? subtitle + " · " + pct : pct
+  }
+  var rated = arrRating({ value: item.audienceRating || item.rating })
+  if (item.Rating && Array.isArray(item.Rating)) {
+    for (var i = 0; i < item.Rating.length; i++) {
+      var tag = item.Rating[i] || {}
+      if (String(tag.type || "").toLowerCase() === "audience" && Number(tag.value) > 0)
+        rated = { value: Number(tag.value), source: "" }
+      if (String(tag.image || "").indexOf("imdb") !== -1 && Number(tag.value) > 0)
+        rated = { value: Number(tag.value), source: "imdb" }
+    }
+  }
+  return {
+    id: String(item.ratingKey || ""),
+    title: title,
+    subtitle: subtitle,
+    artPath: String(item.art || item.grandparentArt || item.thumb || item.grandparentThumb || ""),
+    thumbPath: String(item.thumb || item.grandparentThumb || ""),
+    rating: rated.value,
+    ratingSource: rated.source,
+    progress: progress,
+    kind: "plex"
+  }
+}
+
+function parsePlexLibrary(raw, pageSize) {
+  var records = plexRecords(raw)
+  var out = []
+  for (var i = 0; i < records.length; i++) out.push(parsePlexItem(records[i], false))
+  return capList(out, pageSize)
+}
+
+function parsePlexSessions(raw, pageSize) {
+  var records = plexRecords(raw)
+  var out = []
+  for (var i = 0; i < records.length; i++) out.push(parsePlexItem(records[i], true))
+  return capList(out, pageSize)
+}
+
 function emptySnapshot(service) {
   var svc = service && typeof service === "object" ? service : {}
   return {
@@ -1061,7 +1187,10 @@ function emptySnapshot(service) {
     queueTotal: 0,
     calendar: [],
     activity: [],
-    wanted: []
+    wanted: [],
+    onDeck: [],
+    recent: [],
+    sessions: []
   }
 }
 
@@ -1083,7 +1212,7 @@ function applyHttpHealth(snapshot, statusCode) {
 function isHealthKind(kind) {
   var k = String(kind || "")
   return k === "arr-status" || k === "sab-queue" || k === "generic"
-    || k === "qbit-torrents" || k === "qbit-login"
+    || k === "qbit-torrents" || k === "qbit-login" || k === "plex-identity"
 }
 
 function decideHealth(previousHealth, statusCode, missCount) {
@@ -1115,6 +1244,9 @@ function mergeNow(snapshots, opts) {
   var downloads = []
   var calendar = []
   var warnings = []
+  var sessions = []
+  var onDeck = []
+  var recent = []
   var downloadingCount = 0
   var downCount = 0
   for (var i = 0; i < list.length; i++) {
@@ -1166,6 +1298,31 @@ function mergeNow(snapshots, opts) {
         })
       }
     }
+    var plexLists = [
+      { src: snap.sessions, dest: sessions },
+      { src: snap.onDeck, dest: onDeck },
+      { src: snap.recent, dest: recent }
+    ]
+    for (var p = 0; p < plexLists.length; p++) {
+      var plexItems = toList(plexLists[p].src)
+      for (var x = 0; x < plexItems.length; x++) {
+        var plex = plexItems[x] || {}
+        plexLists[p].dest.push({
+          id: snap.id + ":" + plex.id,
+          posterId: plex.id,
+          serviceId: snap.id,
+          serviceName: snap.name,
+          kind: snap.kind,
+          title: plex.title,
+          subtitle: plex.subtitle,
+          artPath: plex.artPath || "",
+          thumbPath: plex.thumbPath || "",
+          rating: plex.rating || 0,
+          ratingSource: plex.ratingSource || "",
+          progress: plex.progress || 0
+        })
+      }
+    }
   }
   calendar.sort(function(a, b) {
     var da = calendarDayKey(a.airDate)
@@ -1175,10 +1332,16 @@ function mergeNow(snapshots, opts) {
   })
   if (calendar.length > 12) calendar = calendar.slice(0, 12)
   if (downloads.length > 12) downloads = downloads.slice(0, 12)
+  if (sessions.length > 12) sessions = sessions.slice(0, 12)
+  if (onDeck.length > 12) onDeck = onDeck.slice(0, 12)
+  if (recent.length > 12) recent = recent.slice(0, 12)
   return {
     downloads: downloads,
     calendar: calendar,
     warnings: warnings,
+    sessions: sessions,
+    onDeck: onDeck,
+    recent: recent,
     downloadingCount: downloadingCount,
     downCount: downCount
   }
@@ -1188,6 +1351,14 @@ function fleetLine(snapshot) {
   var snap = snapshot || emptySnapshot({})
   if (snap.health === "down") return "down"
   if (snap.health === "unknown") return "waiting"
+  if (snap.kind === "plex") {
+    var watching = Array.isArray(snap.sessions) ? snap.sessions : []
+    if (watching.length === 1) return "Watching " + (watching[0].title || "")
+    if (watching.length > 1) return watching.length + " watching"
+    var deck = Array.isArray(snap.onDeck) ? snap.onDeck : []
+    if (deck.length === 1) return "1 on deck"
+    if (deck.length > 1) return deck.length + " on deck"
+  }
   var active = 0
   var queue = Array.isArray(snap.queue) ? snap.queue : []
   for (var i = 0; i < queue.length; i++) if (isActiveDownload(queue[i])) active += 1
@@ -1354,6 +1525,24 @@ function eventsFromPoll(prev, next, service) {
       })
     }
   }
+  if (after.kind === "plex") {
+    var prevRecent = {}
+    var beforeRecent = Array.isArray(before.recent) ? before.recent : []
+    for (var r = 0; r < beforeRecent.length; r++) prevRecent[String(beforeRecent[r].id)] = true
+    var afterRecent = Array.isArray(after.recent) ? after.recent : []
+    for (var nr = 0; nr < afterRecent.length; nr++) {
+      var addedItem = afterRecent[nr]
+      if (!addedItem.id || prevRecent[addedItem.id]) continue
+      events.push({
+        id: "added-" + after.id + "-" + addedItem.id,
+        type: "library-added",
+        serviceId: after.id,
+        serviceName: after.name,
+        title: after.name,
+        body: addedItem.title
+      })
+    }
+  }
   if (after.kind === "qbittorrent") {
     var prevMap = {}
     for (var p = 0; p < prevQueue.length; p++) prevMap[String(prevQueue[p].id)] = prevQueue[p]
@@ -1384,7 +1573,7 @@ function shouldNotify(event, service, seen) {
   if (list.indexOf(String(event.id)) !== -1) return false
   var svc = service && typeof service === "object" ? service : {}
   var type = String(event.type || "")
-  if (type === "grabbed") return svc.notifyGrab !== false
+  if (type === "grabbed" || type === "library-added") return svc.notifyGrab !== false
   if (type === "import") return svc.notifyImport !== false
   if (type === "service-down" || type === "service-up") return svc.notifyHealth !== false
   if (type === "download-finished" || type === "download-failed") return svc.notifyDownload !== false
@@ -1396,6 +1585,7 @@ function toastTitle(event) {
   if (row.type === "service-down") return row.serviceName + " is down"
   if (row.type === "service-up") return row.serviceName + " is back"
   if (row.type === "grabbed") return row.serviceName + " grabbed"
+  if (row.type === "library-added") return row.serviceName + " added"
   if (row.type === "import") return row.serviceName + " imported"
   if (row.type === "download-finished") return row.serviceName + " finished"
   if (row.type === "download-failed") return row.serviceName + " failed"
@@ -1410,7 +1600,7 @@ function toastGlyph(event) {
   var type = event && event.type
   if (type === "service-down") return "󰀦"
   if (type === "service-up") return "󰗠"
-  if (type === "grabbed") return "󰑓"
+  if (type === "grabbed" || type === "library-added") return "󰑓"
   if (type === "import") return "󰋚"
   if (type === "download-failed") return "󰅙"
   return "󰕙"
@@ -1587,6 +1777,18 @@ if (typeof module !== "undefined" && module.exports) {
     qbitStartUrl: qbitStartUrl,
     qbitPauseAllUrl: qbitPauseAllUrl,
     qbitResumeAllUrl: qbitResumeAllUrl,
+    headerPlex: headerPlex,
+    curlHeaderConfig: curlHeaderConfig,
+    headerIsConfig: headerIsConfig,
+    plexIdentityUrl: plexIdentityUrl,
+    plexSessionsUrl: plexSessionsUrl,
+    plexOnDeckUrl: plexOnDeckUrl,
+    plexRecentlyAddedUrl: plexRecentlyAddedUrl,
+    plexArtUrl: plexArtUrl,
+    plexCachePath: plexCachePath,
+    parsePlexIdentity: parsePlexIdentity,
+    parsePlexLibrary: parsePlexLibrary,
+    parsePlexSessions: parsePlexSessions,
     emptySnapshot: emptySnapshot,
     applyHttpHealth: applyHttpHealth,
     isHealthKind: isHealthKind,

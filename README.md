@@ -2,7 +2,7 @@
 
 A radar-room for locally hosted services, in the Omarchy bar.
 
-Glance the icon for downloads and outages. Open the panel for a fleet roster, a merged “now” feed (queues, tonight’s *arr calendar, health), and per-service controls. Sonarr, Radarr, SABnzbd, and qBittorrent can log in with an API key or password; everything else is a generic tile that health-checks and opens in the browser.
+Glance the icon for downloads and outages. Open the panel for a fleet roster, a merged “now” feed (queues, tonight’s *arr calendar, Plex on deck, health), and per-service controls. Sonarr, Radarr, SABnzbd, Plex, and qBittorrent can log in with an API key, token, or password; everything else is a generic tile that health-checks and opens in the browser.
 
 Plugins run unsandboxed inside `omarchy-shell` with your user permissions. Read the code before you enable it.
 
@@ -32,7 +32,7 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 | `p` / `r` | Pause / resume all download clients |
 | Escape | Close |
 
-Toasts for grabs, imports, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
+Toasts for grabs, imports, Plex library adds, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
 
 ## Settings
 
@@ -44,13 +44,14 @@ First open is an empty radar. Add a service by kind, or **Scan local ports** to 
 | Sonarr | API key | Queue, history, 7-day calendar, missing | Open in browser |
 | Radarr | API key | Queue, history, calendar, missing | Open in browser |
 | SABnzbd | API key | Queue, history, speed | Pause / resume queue or a job |
+| Plex | token | Now playing, on deck, recently added | Open in browser |
 | qBittorrent | username + password | Torrents, transfer speed | Pause / resume torrent or all |
 
-Layout (names, URLs, groups, order, notification flags, poll interval, queue page size, density) is stored in `~/.config/omarchy/shell.json`. API keys and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
+Layout (names, URLs, groups, order, notification flags, poll interval, queue page size, density) is stored in `~/.config/omarchy/shell.json`. API keys, Plex tokens, and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
 
 ## Icons
 
-Fleet and settings tiles use [Dashboard Icons](https://dashboardicons.com) from [Homarr Labs](https://github.com/homarr-labs/dashboard-icons) (Apache 2.0). The colorful SVGs are bundled under `icons/` so the panel never fetches a CDN at runtime. Kind tiles (Sonarr, Radarr, SABnzbd, qBittorrent) always get that icon; generic tiles match on the service name.
+Fleet and settings tiles use [Dashboard Icons](https://dashboardicons.com) from [Homarr Labs](https://github.com/homarr-labs/dashboard-icons) (Apache 2.0). The colorful SVGs are bundled under `icons/` so the panel never fetches a CDN at runtime. Kind tiles (Sonarr, Radarr, SABnzbd, qBittorrent, Plex) always get that icon; generic tiles match on the service name.
 
 | Service | Icon |
 | --- | --- |

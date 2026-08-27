@@ -23,7 +23,7 @@ Panel {
   readonly property color dim: Qt.darker(contentForeground, 1.4)
   readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
-  readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], downloadingCount: 0, downCount: 0 })
+  readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0 })
   readonly property var calendarGroups: Model.groupedCalendar(nowFeed.calendar || [])
   readonly property bool compact: service && service.density === "compact"
   readonly property int rowPad: compact ? Style.space(4) : Style.space(8)
@@ -146,6 +146,11 @@ Panel {
   function fanartSource(serviceId, posterId) {
     if (!root.service || !posterId) return ""
     return "file://" + root.service.fanartPath(serviceId, posterId) + "?" + root.service.posterRevision
+  }
+
+  function plexSource(serviceId, itemId) {
+    if (!root.service || !itemId) return ""
+    return "file://" + root.service.plexPath(serviceId, itemId) + "?" + root.service.posterRevision
   }
 
   function wheelDelta(event) {
@@ -551,12 +556,108 @@ Panel {
 
                 Text {
                   visible: root.service && root.service.showQueue && (!root.nowFeed.downloads || root.nowFeed.downloads.length === 0)
+                    && !(root.nowFeed.sessions || []).length
+                    && !(root.nowFeed.onDeck || []).length
+                    && !(root.nowFeed.recent || []).length
                   width: parent.width
                   text: "Queue is quiet."
                   color: root.dim
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                   font.italic: true
+                }
+
+                PanelSectionHeader {
+                  visible: (root.nowFeed.sessions || []).length > 0
+                  text: "NOW PLAYING"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
+                Repeater {
+                  model: root.nowFeed.sessions || []
+
+                  Column {
+                    required property var modelData
+                    width: parent.width
+                    spacing: Style.space(2)
+
+                    Text {
+                      width: parent.width
+                      text: parent.modelData.title
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.bodySmall
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+
+                    Text {
+                      width: parent.width
+                      visible: parent.modelData.subtitle
+                      height: visible ? implicitHeight : 0
+                      text: parent.modelData.subtitle
+                      color: root.dim
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+
+                    Rectangle {
+                      width: parent.width
+                      height: Style.space(2)
+                      color: Qt.darker(root.contentForeground, 2.2)
+                      radius: 1
+
+                      Rectangle {
+                        width: parent.width * Math.max(0, Math.min(1, parent.parent.modelData.progress || 0))
+                        height: parent.height
+                        color: root.contentForeground
+                        radius: 1
+                      }
+                    }
+                  }
+                }
+
+                PanelSectionHeader {
+                  visible: (root.nowFeed.onDeck || []).length > 0
+                  text: "ON DECK"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
+                Repeater {
+                  model: root.nowFeed.onDeck || []
+
+                  CalendarCard {
+                    required property var modelData
+                    item: modelData
+                    posterUrl: root.plexSource(modelData.serviceId, modelData.posterId)
+                    fanartUrl: root.plexSource(modelData.serviceId, modelData.posterId)
+                    compact: root.compact
+                    fontFamily: root.contentFontFamily
+                  }
+                }
+
+                PanelSectionHeader {
+                  visible: (root.nowFeed.recent || []).length > 0
+                  text: "RECENTLY ADDED"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
+                Repeater {
+                  model: root.nowFeed.recent || []
+
+                  CalendarCard {
+                    required property var modelData
+                    item: modelData
+                    posterUrl: root.plexSource(modelData.serviceId, modelData.posterId)
+                    fanartUrl: root.plexSource(modelData.serviceId, modelData.posterId)
+                    compact: root.compact
+                    fontFamily: root.contentFontFamily
+                  }
                 }
 
                 PanelSectionHeader {
@@ -668,8 +769,107 @@ Panel {
                   textFormat: Text.PlainText
                 }
 
+                PanelSectionHeader {
+                  visible: root.detailSnap && root.detailSnap.kind === "plex"
+                    && (root.detailSnap.sessions || []).length > 0
+                  text: "NOW PLAYING"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
                 Repeater {
-                  model: root.detailQueueModel
+                  model: root.detailSnap && root.detailSnap.kind === "plex"
+                    ? (root.detailSnap.sessions || []) : []
+
+                  Column {
+                    required property var modelData
+                    width: parent.width
+                    spacing: Style.space(2)
+
+                    Text {
+                      width: parent.width
+                      text: parent.modelData.title
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.bodySmall
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+
+                    Text {
+                      width: parent.width
+                      visible: parent.modelData.subtitle
+                      height: visible ? implicitHeight : 0
+                      text: parent.modelData.subtitle
+                      color: root.dim
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+
+                    Rectangle {
+                      width: parent.width
+                      height: Style.space(2)
+                      color: Qt.darker(root.contentForeground, 2.2)
+                      radius: 1
+
+                      Rectangle {
+                        width: parent.width * Math.max(0, Math.min(1, parent.parent.modelData.progress || 0))
+                        height: parent.height
+                        color: root.contentForeground
+                        radius: 1
+                      }
+                    }
+                  }
+                }
+
+                PanelSectionHeader {
+                  visible: root.detailSnap && root.detailSnap.kind === "plex"
+                    && (root.detailSnap.onDeck || []).length > 0
+                  text: "ON DECK"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
+                Repeater {
+                  model: root.detailSnap && root.detailSnap.kind === "plex"
+                    ? (root.detailSnap.onDeck || []) : []
+
+                  CalendarCard {
+                    required property var modelData
+                    item: modelData
+                    posterUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
+                    fanartUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
+                    compact: root.compact
+                    fontFamily: root.contentFontFamily
+                  }
+                }
+
+                PanelSectionHeader {
+                  visible: root.detailSnap && root.detailSnap.kind === "plex"
+                    && (root.detailSnap.recent || []).length > 0
+                  text: "RECENTLY ADDED"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
+                Repeater {
+                  model: root.detailSnap && root.detailSnap.kind === "plex"
+                    ? (root.detailSnap.recent || []) : []
+
+                  CalendarCard {
+                    required property var modelData
+                    item: modelData
+                    posterUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
+                    fanartUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
+                    compact: root.compact
+                    fontFamily: root.contentFontFamily
+                  }
+                }
+
+                Repeater {
+                  model: root.detailSnap && root.detailSnap.kind === "plex" ? [] : root.detailQueueModel
 
                   CursorSurface {
                     id: qRow
@@ -755,7 +955,8 @@ Panel {
                 }
 
                 Row {
-                  visible: root.detailPager.hasPrev || root.detailPager.hasNext
+                  visible: root.detailSnap && root.detailSnap.kind !== "plex"
+                    && (root.detailPager.hasPrev || root.detailPager.hasNext)
                   width: parent.width
                   spacing: Style.space(6)
                   height: visible ? implicitHeight : 0
@@ -831,7 +1032,7 @@ Panel {
                 }
 
                 Repeater {
-                  model: root.detailSnap && root.detailSnap.calendar
+                  model: root.detailSnap && root.detailSnap.kind !== "plex" && root.detailSnap.calendar
                     ? Model.groupedCalendar(root.detailSnap.calendar) : []
 
                   Column {

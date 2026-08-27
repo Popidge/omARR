@@ -13,7 +13,7 @@ Item {
   property var credentials: ({})
   property var seenIds: []
   property var snapshots: []
-  property var nowFeed: ({ downloads: [], calendar: [], warnings: [], downloadingCount: 0, downCount: 0 })
+  property var nowFeed: ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0 })
   property var qbitReady: ({})
   property var detailQueue: []
   property int detailQueuePage: 1
@@ -143,7 +143,8 @@ Item {
   function startReq(req) {
     root.currentReq = req
     if (req.headerText) {
-      headerFile.setText(req.headerText)
+      req.useCurlConfig = Model.headerIsConfig(req.headerText)
+      headerFile.setText(req.useCurlConfig ? Model.curlHeaderConfig(req.headerText) : req.headerText)
       headerFile.waitForJob()
     }
     if (req.bodyText) {
@@ -190,7 +191,10 @@ Item {
     var cmd = ["curl", "-sS", "-w", "\n%{http_code}", "--proto", "=http,https"]
     cmd = cmd.concat(req.scan ? Model.scanCurlBounds() : Model.curlBounds(max))
     if (req.method === "POST") cmd.push("-X", "POST")
-    if (req.headerText) cmd.push("-H", "@" + root.headerPath)
+    if (req.headerText) {
+      if (req.useCurlConfig) cmd.push("--config", root.headerPath)
+      else cmd.push("-H", "@" + root.headerPath)
+    }
     if (req.bodyText) {
       cmd.push("-H", "Content-Type: application/x-www-form-urlencoded")
       cmd.push("--data-binary", "@" + root.bodyPath)
@@ -210,7 +214,7 @@ Item {
 
   function cloneSnap(snap) {
     var next = Model.emptySnapshot(snap)
-    var keys = ["health", "statusText", "version", "paused", "speed", "queue", "queuePage", "queueTotal", "calendar", "activity", "wanted"]
+    var keys = ["health", "statusText", "version", "paused", "speed", "queue", "queuePage", "queueTotal", "calendar", "activity", "wanted", "sessions", "onDeck", "recent"]
     for (var i = 0; i < keys.length; i++) next[keys[i]] = snap[keys[i]]
     return next
   }
@@ -500,6 +504,49 @@ Item {
       }
       return
     }
+    if (req.kind === "plex-identity") {
+      var plexDecision = Model.decideHealth(
+        root.snapshotFor(service).health,
+        parsed.status,
+        root.healthMisses[service.id] || 0
+      )
+      root.setHealthMisses(service.id, plexDecision.misses)
+      if (!plexDecision.commit) return
+      if (parsed.status < 200 || parsed.status >= 400) {
+        root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
+        return
+      }
+      var ident = Model.parsePlexIdentity(parsed.body)
+      snap = Model.applyHttpHealth(snap, parsed.status)
+      snap.version = ident.version
+      snap.statusText = ident.version || "Reachable"
+      root.commitSnapshot(snap, service)
+      return
+    }
+    if (req.kind === "plex-sessions") {
+      if (parsed.status >= 200 && parsed.status < 400) {
+        snap.sessions = Model.parsePlexSessions(parsed.body, root.pageSize)
+        root.commitSnapshot(snap, service)
+        if (root.panelOpen) root.enqueuePlexArt(service, snap)
+      }
+      return
+    }
+    if (req.kind === "plex-ondeck") {
+      if (parsed.status >= 200 && parsed.status < 400) {
+        snap.onDeck = Model.parsePlexLibrary(parsed.body, root.pageSize)
+        root.commitSnapshot(snap, service)
+        if (root.panelOpen) root.enqueuePlexArt(service, snap)
+      }
+      return
+    }
+    if (req.kind === "plex-recent") {
+      if (parsed.status >= 200 && parsed.status < 400) {
+        snap.recent = Model.parsePlexLibrary(parsed.body, root.pageSize)
+        root.commitSnapshot(snap, service)
+        if (root.panelOpen) root.enqueuePlexArt(service, snap)
+      }
+      return
+    }
   }
 
   function handleFailure() {
@@ -648,6 +695,45 @@ Item {
     })
   }
 
+  function enqueuePlex(service) {
+    var auth = root.cred(service.id)
+    var header = Model.headerPlex(auth.apiKey)
+    root.enqueue({ kind: "plex-identity", serviceId: service.id, url: Model.plexIdentityUrl(service.url), headerText: header })
+    root.enqueue({ kind: "plex-sessions", serviceId: service.id, url: Model.plexSessionsUrl(service.url), headerText: header })
+    root.enqueue({ kind: "plex-ondeck", serviceId: service.id, url: Model.plexOnDeckUrl(service.url), headerText: header })
+    root.enqueue({
+      kind: "plex-recent",
+      serviceId: service.id,
+      url: Model.plexRecentlyAddedUrl(service.url, root.pageSize),
+      headerText: header
+    })
+  }
+
+  function enqueuePlexArt(service, snap) {
+    var auth = root.cred(service.id)
+    var header = Model.headerPlex(auth.apiKey)
+    var lists = [snap.sessions || [], snap.onDeck || [], snap.recent || []]
+    var seen = {}
+    for (var l = 0; l < lists.length; l++) {
+      for (var i = 0; i < lists[l].length; i++) {
+        var item = lists[l][i]
+        var id = item && item.id
+        if (!id || seen[id]) continue
+        seen[id] = true
+        var url = Model.plexArtUrl(service.url, item.artPath || item.thumbPath)
+        if (!url) continue
+        root.enqueue({
+          kind: "poster",
+          serviceId: service.id,
+          url: url,
+          headerText: header,
+          outputPath: Model.plexCachePath(root.cacheDir, service.id, id),
+          image: true
+        })
+      }
+    }
+  }
+
   function enqueuePoll() {
     if (root.reqQueue.length) return
     for (var i = 0; i < root.services.length; i++) {
@@ -656,6 +742,7 @@ Item {
       if (svc.kind === "sonarr" || svc.kind === "radarr") root.enqueueArr(svc)
       else if (svc.kind === "sabnzbd") root.enqueueSab(svc)
       else if (svc.kind === "qbittorrent") root.enqueueQbit(svc)
+      else if (svc.kind === "plex") root.enqueuePlex(svc)
       else root.enqueueGeneric(svc)
     }
   }
@@ -759,6 +846,10 @@ Item {
 
   function fanartPath(serviceId, posterId) {
     return Model.fanartCachePath(root.cacheDir, serviceId, posterId)
+  }
+
+  function plexPath(serviceId, itemId) {
+    return Model.plexCachePath(root.cacheDir, serviceId, itemId)
   }
 
   FileView {

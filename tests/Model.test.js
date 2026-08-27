@@ -94,7 +94,7 @@ twoKeys = Model.setCredential(twoKeys, twoSonarr.services[1].id, { apiKey: "bbb"
 checkEqual(Model.credentialFor(twoKeys, twoSonarr.services[0].id).apiKey, "aaa", "first sonarr key")
 checkEqual(Model.credentialFor(twoKeys, twoSonarr.services[1].id).apiKey, "bbb", "second sonarr key")
 
-check(Model.kindNeedsApiKey("sonarr") && Model.kindNeedsApiKey("radarr") && Model.kindNeedsApiKey("sabnzbd"), "arr/sab need api key")
+check(Model.kindNeedsApiKey("sonarr") && Model.kindNeedsApiKey("radarr") && Model.kindNeedsApiKey("sabnzbd") && Model.kindNeedsApiKey("plex"), "arr/sab/plex need api key")
 check(!Model.kindNeedsApiKey("generic") && !Model.kindNeedsApiKey("qbittorrent"), "generic/qbit no api key")
 check(Model.kindNeedsUserPass("qbittorrent"), "qbit needs user/pass")
 check(!Model.kindNeedsUserPass("sonarr"), "sonarr no user/pass")
@@ -467,6 +467,87 @@ checkEqual(Model.parseQbitTorrents(JSON.stringify(manyTorrents), 10).length, 10,
 checkEqual(Model.qbitPauseUrl("http://q:8080"), "http://q:8080/api/v2/torrents/pause", "qbit pause url")
 checkEqual(Model.qbitResumeUrl("http://q:8080"), "http://q:8080/api/v2/torrents/resume", "qbit resume url")
 
+checkEqual(Model.plexIdentityUrl("http://p:32400"), "http://p:32400/identity", "plex identity url")
+checkEqual(Model.plexSessionsUrl("http://p:32400"), "http://p:32400/status/sessions", "plex sessions url")
+checkEqual(Model.plexOnDeckUrl("http://p:32400"), "http://p:32400/library/onDeck", "plex ondeck url")
+check(Model.plexRecentlyAddedUrl("http://p:32400").indexOf("/library/recentlyAdded") !== -1, "plex recent url")
+check(Model.plexRecentlyAddedUrl("http://p:32400", 10).indexOf("X-Plex-Container-Size=10") !== -1, "plex recent size")
+check(Model.headerPlex("tok").indexOf("X-Plex-Token: tok\n") !== -1, "plex token header")
+check(Model.headerPlex("tok").indexOf("Accept: application/json") !== -1, "plex json accept")
+check(Model.headerIsConfig(Model.headerPlex("tok")), "plex headers need curl config")
+check(!Model.headerIsConfig(Model.headerApiKey("k")), "api key is one header")
+check(Model.curlHeaderConfig(Model.headerPlex("tok")).indexOf("header = \"X-Plex-Token: tok\"") !== -1, "curl config token")
+checkEqual(Model.plexArtUrl("http://p:32400", "/library/metadata/1/thumb/2"), "http://p:32400/library/metadata/1/thumb/2", "plex relative art")
+checkEqual(Model.plexArtUrl("http://p:32400", "https://plex.tv/photo.jpg"), "", "plex skips remote art")
+checkEqual(Model.plexCachePath("/tmp/omarr", "svc-1", "99"), "/tmp/omarr/svc-1-99-plex.jpg", "plex cache path")
+
+var plexIdent = Model.parsePlexIdentity(JSON.stringify({ MediaContainer: { version: "1.41.2", machineIdentifier: "abc" } }))
+checkEqual(plexIdent.version, "1.41.2", "plex version")
+check(plexIdent.healthy === true, "plex identity ok")
+
+var plexRecent = Model.parsePlexLibrary(JSON.stringify({
+  MediaContainer: {
+    Metadata: [
+      {
+        ratingKey: "11",
+        type: "episode",
+        title: "Pilot",
+        grandparentTitle: "Show",
+        parentIndex: 1,
+        index: 1,
+        thumb: "/library/metadata/11/thumb/1",
+        art: "/library/metadata/9/art/1",
+        audienceRating: 8.2
+      },
+      { ratingKey: "12", type: "movie", title: "Film", year: 2024, thumb: "/library/metadata/12/thumb/1" }
+    ]
+  }
+}))
+checkEqual(plexRecent.length, 2, "plex recent len")
+checkEqual(plexRecent[0].title, "Show", "plex episode uses show title")
+checkEqual(plexRecent[0].subtitle.indexOf("S01E01") !== -1, true, "plex episode code")
+checkEqual(plexRecent[0].artPath, "/library/metadata/9/art/1", "plex prefers art")
+checkEqual(plexRecent[0].rating, 8.2, "plex audience rating")
+checkEqual(plexRecent[1].title, "Film", "plex movie title")
+checkEqual(plexRecent[1].subtitle, "2024", "plex movie year")
+
+var plexDeck = Model.parsePlexLibrary(JSON.stringify({
+  MediaContainer: {
+    Metadata: [{
+      ratingKey: "21",
+      type: "episode",
+      title: "Next",
+      grandparentTitle: "Show",
+      parentIndex: 2,
+      index: 4,
+      viewOffset: 600000,
+      duration: 2400000,
+      thumb: "/library/metadata/21/thumb/1"
+    }]
+  }
+}))
+checkEqual(plexDeck[0].progress, 0.25, "plex ondeck progress")
+check(plexDeck[0].subtitle.indexOf("25%") !== -1, "plex ondeck progress text")
+
+var plexNow = Model.parsePlexSessions(JSON.stringify({
+  MediaContainer: {
+    Metadata: [{
+      ratingKey: "31",
+      type: "movie",
+      title: "Film",
+      viewOffset: 100,
+      duration: 400,
+      User: { title: "del" },
+      Player: { title: "TV", state: "playing" }
+    }]
+  }
+}))
+checkEqual(plexNow.length, 1, "plex session")
+checkEqual(plexNow[0].title, "Film", "plex watching title")
+check(plexNow[0].subtitle.indexOf("del") !== -1, "plex watching user")
+checkEqual(plexNow[0].progress, 0.25, "plex session progress")
+checkEqual(Model.qbitResumeUrl("http://q:8080"), "http://q:8080/api/v2/torrents/resume", "qbit resume url")
+
 var snap = Model.emptySnapshot({ id: "svc-1", kind: "sonarr", name: "Sonarr", url: "http://s:8989", group: "Media" })
 checkEqual(snap.health, "unknown", "empty health")
 var up = Model.applyHttpHealth(snap, 200)
@@ -480,7 +561,10 @@ check(Model.isHealthKind("arr-status"), "status is health")
 check(Model.isHealthKind("sab-queue"), "sab queue is health")
 check(Model.isHealthKind("generic"), "generic is health")
 check(Model.isHealthKind("qbit-torrents"), "qbit torrents is health")
-check(Model.isHealthKind("qbit-login"), "qbit login is health")
+check(Model.isHealthKind("plex-identity"), "plex identity is health")
+check(!Model.isHealthKind("plex-ondeck"), "plex ondeck is not health")
+check(!Model.isHealthKind("plex-recent"), "plex recent is not health")
+check(!Model.isHealthKind("plex-sessions"), "plex sessions is not health")
 check(!Model.isHealthKind("arr-calendar"), "calendar is not health")
 check(!Model.isHealthKind("arr-queue"), "queue is not health")
 check(!Model.isHealthKind("arr-wanted"), "wanted is not health")
@@ -526,6 +610,34 @@ checkEqual(now.downCount, 1, "down count")
 
 check(Model.fleetLine(radarrSnap).indexOf("down") !== -1, "fleet down")
 check(Model.fleetLine(sabSnap).length > 0, "fleet sab")
+
+var plexSnap = Model.emptySnapshot({ id: "p", kind: "plex", name: "Plex" })
+plexSnap.health = "up"
+plexSnap.sessions = plexNow
+plexSnap.onDeck = plexDeck
+plexSnap.recent = plexRecent
+check(Model.fleetLine(plexSnap).indexOf("Watching") !== -1, "fleet watching")
+var plexIdle = Model.emptySnapshot({ id: "p", kind: "plex", name: "Plex" })
+plexIdle.health = "up"
+plexIdle.onDeck = plexDeck
+check(Model.fleetLine(plexIdle).indexOf("on deck") !== -1, "fleet on deck")
+var plexNowFeed = Model.mergeNow([plexSnap], { showCalendar: true, showQueue: true })
+checkEqual(plexNowFeed.sessions.length, 1, "merged sessions")
+check(plexNowFeed.onDeck.length >= 1, "merged ondeck")
+check(plexNowFeed.recent.length >= 2, "merged recent")
+
+var plexPrev = Model.emptySnapshot({ id: "p", kind: "plex", name: "Plex" })
+plexPrev.health = "up"
+plexPrev.recent = []
+var plexNext = Model.emptySnapshot({ id: "p", kind: "plex", name: "Plex" })
+plexNext.health = "up"
+plexNext.recent = plexRecent
+var plexEvents = Model.eventsFromPoll(plexPrev, plexNext, { id: "p", kind: "plex", notifyGrab: true })
+check(plexEvents.some(function(e) { return e.type === "library-added" }), "plex added event")
+var added = plexEvents.filter(function(e) { return e.type === "library-added" })[0]
+check(Model.shouldNotify(added, { notifyGrab: true }, []) === true, "notify plex added")
+check(Model.shouldNotify(added, { notifyGrab: false }, []) === false, "plex added flag off")
+check(Model.toastTitle(added).indexOf("added") !== -1, "plex added toast")
 
 var badge = Model.barBadge([sonarrSnap, radarrSnap, sabSnap])
 check(badge.urgent === true, "badge urgent when down")
@@ -585,8 +697,10 @@ checkEqual(Model.scanUrl("127.0.0.1", 8989), "http://127.0.0.1:8989", "scan url"
 checkEqual(Model.kindFromPort(8989), "sonarr", "port sonarr")
 checkEqual(Model.kindFromPort(7878), "radarr", "port radarr")
 checkEqual(Model.kindFromPort(8080), "generic", "port 8080 ambiguous")
-checkEqual(Model.kindFromPort(8096), "generic", "jellyfin generic")
-checkEqual(Model.defaultUrlForKind("sonarr"), "http://127.0.0.1:8989", "default sonarr url")
+checkEqual(Model.kindFromPort(32400), "plex", "port plex")
+checkEqual(Model.defaultUrlForKind("plex"), "http://127.0.0.1:32400", "default plex url")
+checkEqual(Model.kindLabel("plex"), "Plex", "plex label")
+checkEqual(Model.iconSlug({ kind: "plex", name: "Living Room" }), "plex", "plex kind icon")
 
 var actions = Model.pauseAllActions([sabSnap, sonarrSnap])
 check(actions.some(function(a) { return a.kind === "sabnzbd" }), "pause sab")
