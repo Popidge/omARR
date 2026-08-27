@@ -559,11 +559,13 @@ Panel {
               Column {
                 id: pane
                 width: contentFlick.width
-                spacing: Style.space(8)
+                spacing: Style.space(12)
+                topPadding: Style.space(4)
+                bottomPadding: Style.space(8)
 
               Column {
                 width: parent.width
-                spacing: Style.space(6)
+                spacing: Style.space(10)
                 visible: !root.detailSnap
                 height: visible ? implicitHeight : 0
 
@@ -785,7 +787,7 @@ Panel {
                   Column {
                     required property var modelData
                     width: parent.width
-                    spacing: Style.space(6)
+                    spacing: Style.space(10)
 
                     Text {
                       visible: parent.modelData.heading !== ""
@@ -830,7 +832,7 @@ Panel {
 
               Column {
                 width: parent.width
-                spacing: Style.space(6)
+                spacing: Style.space(10)
                 visible: !!root.detailSnap
                 height: visible ? implicitHeight : 0
 
@@ -1156,7 +1158,7 @@ Panel {
                   Column {
                     required property var modelData
                     width: parent.width
-                    spacing: Style.space(6)
+                    spacing: Style.space(10)
 
                     Text {
                       visible: parent.modelData.heading !== ""
