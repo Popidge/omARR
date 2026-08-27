@@ -379,8 +379,14 @@ Panel {
                 current: root.detailId === ""
                 foreground: root.contentForeground
                 accent: Color.accent
+                opacity: overviewHover.containsMouse || overviewRow.hasCursor || overviewRow.current ? 1 : 0.8
+
+                Behavior on opacity {
+                  NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                }
 
                 MouseArea {
+                  id: overviewHover
                   anchors.fill: parent
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
@@ -473,8 +479,14 @@ Panel {
                       current: root.detailId === fleetRow.modelData.id
                       foreground: root.contentForeground
                       accent: Color.accent
+                      opacity: fleetHover.containsMouse || fleetRow.hasCursor || fleetRow.current ? 1 : 0.8
+
+                      Behavior on opacity {
+                        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                      }
 
                       MouseArea {
+                        id: fleetHover
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
