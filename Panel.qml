@@ -27,7 +27,7 @@ Panel {
   readonly property var calendarGroups: Model.groupedCalendar(nowFeed.calendar || [])
   readonly property bool compact: service && service.density === "compact"
   readonly property int rowPad: compact ? Style.space(4) : Style.space(8)
-  readonly property int fleetWidth: Style.space(220)
+  readonly property int fleetWidth: Style.space(196)
   readonly property bool hasDownloader: Model.anyDownloader(snapshots)
   readonly property var selectedSnap: selectedIndex >= 0 && selectedIndex < snapshots.length ? snapshots[selectedIndex] : null
   readonly property var detailSnap: Model.snapshotById(snapshots, detailId)
@@ -184,7 +184,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(720))
+    contentWidth: panel.fittedContentWidth(Style.space(500))
     contentHeight: panel.cappedContentHeight(Style.space(640))
 
     PanelKeyCatcher {
@@ -322,7 +322,7 @@ Panel {
 
             Row {
               anchors.fill: parent
-              spacing: Style.space(12)
+              spacing: Style.space(8)
               visible: !root.showSettings && root.snapshots.length > 0
 
             Column {
