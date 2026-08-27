@@ -1,6 +1,6 @@
 # omARR
 
-A radar-room for locally hosted services, in the Omarchy bar.
+An overview of locally hosted services, in the Omarchy bar.
 
 Glance the icon for downloads and outages. Open the panel for a fleet roster, a merged “now” feed (queues, tonight’s *arr calendar, Plex on deck, health), and per-service controls. Sonarr, Radarr, SABnzbd, Plex, and qBittorrent can log in with an API key, token, or password; everything else is a generic tile that health-checks and opens in the browser.
 
@@ -25,9 +25,9 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 | Action | Result |
 | --- | --- |
 | Click the bar icon | Open or close the panel |
-| `j` / `k` | Move through the fleet |
+| `j` / `k` | Move through Overview and the fleet |
 | Enter | Open the selected service in the browser |
-| Space | Expand that service’s detail pane |
+| Space | Open that service’s detail, or return to Overview |
 | `s` | Settings |
 | `p` / `r` | Pause / resume all download clients |
 | Escape | Close |
@@ -36,7 +36,7 @@ Toasts for grabs, imports, Plex library adds, finished or failed downloads, and 
 
 ## Settings
 
-First open is an empty radar. Add a service by kind, or **Scan local ports** to probe this machine (8989, 7878, 8080, 8096, 32400, 8123, 9696, 5055).
+First open is an empty overview. Add a service by kind, or **Scan local ports** to probe this machine (8989, 7878, 8080, 8096, 32400, 8123, 9696, 5055).
 
 | Kind | Auth | Live data | Controls |
 | --- | --- | --- | --- |
@@ -92,7 +92,7 @@ Fleet and settings tiles use [Dashboard Icons](https://dashboardicons.com) from 
 | Traefik | [traefik](https://dashboardicons.com/icons/traefik) |
 | Paperless-ngx | [paperless-ngx](https://dashboardicons.com/icons/paperless-ngx) |
 
-Name a generic tile after one of those (or a close alias like `pihole`) and the matching icon shows up. Unknown names fall back to a letter tile. The bar keeps the omARR radar glyph.
+Name a generic tile after one of those (or a close alias like `pihole`) and the matching icon shows up. Unknown names fall back to a letter tile. The bar keeps the omARR glyph.
 
 ## Remove
 

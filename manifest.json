@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "luccast",
   "license": "MIT",
-  "description": "A radar-room panel for locally hosted services, with live Sonarr, Radarr, Plex, SABnzbd, and qBittorrent controls.",
+  "description": "An overview panel for locally hosted services, with live Sonarr, Radarr, Plex, SABnzbd, and qBittorrent controls.",
   "kinds": [
     "service",
     "bar-widget"

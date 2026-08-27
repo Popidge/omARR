@@ -13,7 +13,7 @@ Panel {
   property var hostWidget: null
   property var service: null
   property bool showSettings: false
-  property int selectedIndex: 0
+  property int selectedIndex: -1
   property string detailId: ""
   property string homeTab: "ondeck"
   property bool enterConsumed: false
@@ -110,12 +110,17 @@ Panel {
 
   function clampSelection() {
     if (root.snapshots.length === 0) {
-      root.selectedIndex = 0
+      root.selectedIndex = -1
       return
     }
-    if (root.selectedIndex < 0) root.selectedIndex = 0
+    if (root.selectedIndex < -1) root.selectedIndex = -1
     if (root.selectedIndex >= root.snapshots.length)
       root.selectedIndex = root.snapshots.length - 1
+  }
+
+  function goOverview() {
+    root.detailId = ""
+    root.selectedIndex = -1
   }
 
   function moveCursor(dx, dy) {
@@ -125,7 +130,7 @@ Panel {
       return
     }
     if (dx < 0) {
-      root.detailId = ""
+      root.goOverview()
       return
     }
     root.selectedIndex += dy
@@ -138,11 +143,16 @@ Panel {
       return
     }
     if (root.showSettings) return
-    if (!root.selectedSnap) {
+    if (root.snapshots.length === 0) {
       root.showSettings = true
       return
     }
-    if (root.detailId === root.selectedSnap.id) root.detailId = ""
+    if (root.selectedIndex < 0) {
+      root.goOverview()
+      return
+    }
+    if (!root.selectedSnap) return
+    if (root.detailId === root.selectedSnap.id) root.goOverview()
     else root.detailId = root.selectedSnap.id
   }
 
@@ -335,7 +345,7 @@ Panel {
 
               Text {
                 width: parent.width
-                text: "Nothing on the radar yet. Open settings to add Sonarr, Radarr, SABnzbd, qBittorrent, or any local URL — or scan this machine."
+                text: "Nothing on the overview yet. Open settings to add Sonarr, Radarr, SABnzbd, qBittorrent, or any local URL — or scan this machine."
                 wrapMode: Text.WordWrap
                 color: root.dim
                 font.family: root.contentFontFamily
@@ -360,6 +370,65 @@ Panel {
               height: parent.height
               clip: true
               spacing: Style.space(4)
+
+              CursorSurface {
+                id: overviewRow
+                width: parent.width
+                implicitHeight: overviewCol.implicitHeight + Style.space(6)
+                hasCursor: root.selectedIndex < 0
+                current: root.detailId === ""
+                foreground: root.contentForeground
+                accent: Color.accent
+
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.goOverview()
+                }
+
+                Row {
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.margins: Style.space(4)
+                  spacing: Style.space(6)
+
+                  OmarrIcon {
+                    id: overviewIcon
+                    iconSize: Style.space(16)
+                    color: root.contentForeground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+
+                  Column {
+                    id: overviewCol
+                    width: parent.width - overviewIcon.width - parent.spacing
+                    spacing: Style.space(1)
+
+                    Text {
+                      width: parent.width
+                      text: "Overview"
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.bodySmall
+                      font.bold: true
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+
+                    Text {
+                      width: parent.width
+                      text: "All services"
+                      color: root.dim
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+                  }
+                }
+              }
 
               PanelSectionHeader {
                 text: "FLEET"
@@ -804,14 +873,6 @@ Panel {
                       foreground: root.contentForeground
                       fontFamily: root.contentFontFamily
                       onClicked: if (root.service && root.detailSnap) root.service.openUrl(root.detailSnap.url)
-                    }
-
-                    PanelActionButton {
-                      iconText: "󰅖"
-                      tooltipText: "Back to now"
-                      foreground: root.contentForeground
-                      fontFamily: root.contentFontFamily
-                      onClicked: root.detailId = ""
                     }
                   }
                 }
