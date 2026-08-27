@@ -220,6 +220,10 @@ check(Model.arrHistoryUrl("http://s:8989", "sonarr").indexOf("/api/v3/history?")
 check(Model.arrHistoryUrl("http://s:8989", "sonarr").indexOf("includeSeries=true") !== -1, "arr history series")
 check(Model.arrHistoryUrl("http://r:7878", "radarr").indexOf("includeMovie=true") !== -1, "arr history movie")
 checkEqual(Model.arrPosterUrl("http://s:8989", "sonarr", 12), "http://s:8989/api/v3/mediacover/12/poster-250.jpg", "poster url")
+checkEqual(Model.arrFanartUrl("http://s:8989", 12), "http://s:8989/api/v3/mediacover/12/fanart-360.jpg", "fanart url")
+checkEqual(Model.formatRating(8.4, "imdb"), "IMDb 8.4", "imdb rating label")
+checkEqual(Model.formatRating(8.5, ""), "8.5", "generic rating")
+checkEqual(Model.formatRating(0, "imdb"), "", "empty rating")
 
 var status = Model.parseArrStatus('{"version":"4.0.1","appName":"Sonarr"}')
 checkEqual(status.version, "4.0.1", "arr version")
@@ -262,6 +266,20 @@ var cal = Model.parseArrCalendar(JSON.stringify([
 checkEqual(cal[0].title, "Show", "cal series")
 checkEqual(cal[0].subtitle, "S01E02 Next", "cal episode")
 checkEqual(cal[0].posterId, "3", "cal poster")
+checkEqual(cal[0].rating, 0, "cal no rating")
+
+var calRated = Model.parseArrCalendar(JSON.stringify([
+  {
+    id: 40,
+    airDate: "2026-08-26",
+    seasonNumber: 1,
+    episodeNumber: 1,
+    title: "Pilot",
+    series: { title: "Show", id: 3, ratings: { votes: 10, value: 8.5 } }
+  }
+]), "sonarr")
+checkEqual(calRated[0].rating, 8.5, "sonarr series rating")
+checkEqual(calRated[0].ratingSource, "", "sonarr rating is not imdb")
 
 var calFlat = Model.parseArrCalendar(JSON.stringify([
   {
@@ -328,11 +346,29 @@ var mergedCal = Model.mergeNow([lqSnap, hqSnap], { showCalendar: true, showQueue
 var mergedGroups = Model.groupedCalendar(mergedCal.calendar, wed)
 checkEqual(mergedGroups.map(function(g) { return g.day }).join(","), "Today,Tomorrow,Friday", "merged now calendar by day")
 
+lqSnap.calendar[1].rating = 8.5
+lqSnap.calendar[1].ratingSource = ""
+var mergedRated = Model.mergeNow([lqSnap], { showCalendar: true, showQueue: false })
+var todayItems = mergedRated.calendar.filter(function(ev) { return ev.title === "LQ Today" })
+checkEqual(todayItems[0].rating, 8.5, "merged rating")
+
 var movies = Model.parseArrCalendar(JSON.stringify([
   { id: 8, title: "Film", year: 2024, inCinemas: "2026-08-27", hasFile: false, monitored: true }
 ]), "radarr")
 checkEqual(movies[0].title, "Film", "radarr cal")
 checkEqual(movies[0].subtitle, "2024", "radarr year")
+
+var movieRated = Model.parseArrCalendar(JSON.stringify([
+  {
+    id: 9,
+    title: "Rated Film",
+    year: 2025,
+    inCinemas: "2026-08-27",
+    ratings: { imdb: { votes: 100, value: 7.3 }, tmdb: { value: 6.1 } }
+  }
+]), "radarr")
+checkEqual(movieRated[0].rating, 7.3, "radarr imdb rating")
+checkEqual(movieRated[0].ratingSource, "imdb", "radarr rating source")
 
 var wanted = Model.parseArrWanted(JSON.stringify({
   records: [{ id: 1, title: "Pilot", seasonNumber: 1, episodeNumber: 1, series: { title: "Show", id: 3 } }]
@@ -587,6 +623,7 @@ for (var i = 0; i < slugs.length; i++) {
 }
 
 checkEqual(Model.posterCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12.jpg", "poster path")
+checkEqual(Model.fanartCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12-fanart.jpg", "fanart path")
 
 if (fails) {
   console.error(fails + " failed")

@@ -539,21 +539,41 @@ Item {
   }
 
   function enqueuePosters(service, snap) {
-    var ids = {}
-    var lists = [snap.calendar || [], snap.queue || [], snap.wanted || []]
+    var posters = {}
+    var fanarts = {}
+    var calendar = snap.calendar || []
+    for (var c = 0; c < calendar.length; c++) {
+      var cid = calendar[c].posterId
+      if (cid) {
+        posters[cid] = true
+        fanarts[cid] = true
+      }
+    }
+    var lists = [snap.queue || [], snap.wanted || []]
     for (var l = 0; l < lists.length; l++) {
       for (var i = 0; i < lists[l].length; i++) {
         var pid = lists[l][i].posterId
-        if (pid) ids[pid] = true
+        if (pid) posters[pid] = true
       }
     }
     var auth = root.cred(service.id)
-    for (var id in ids) {
+    var header = auth.apiKey ? Model.headerApiKey(auth.apiKey) : ""
+    for (var fid in fanarts) {
+      root.enqueue({
+        kind: "poster",
+        serviceId: service.id,
+        url: Model.arrFanartUrl(service.url, fid),
+        headerText: header,
+        outputPath: Model.fanartCachePath(root.cacheDir, service.id, fid),
+        image: true
+      })
+    }
+    for (var id in posters) {
       root.enqueue({
         kind: "poster",
         serviceId: service.id,
         url: Model.arrPosterUrl(service.url, service.kind, id),
-        headerText: auth.apiKey ? Model.headerApiKey(auth.apiKey) : "",
+        headerText: header,
         outputPath: Model.posterCachePath(root.cacheDir, service.id, id),
         image: true
       })
@@ -735,6 +755,10 @@ Item {
 
   function posterPath(serviceId, posterId) {
     return Model.posterCachePath(root.cacheDir, serviceId, posterId)
+  }
+
+  function fanartPath(serviceId, posterId) {
+    return Model.fanartCachePath(root.cacheDir, serviceId, posterId)
   }
 
   FileView {

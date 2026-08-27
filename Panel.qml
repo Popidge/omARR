@@ -140,6 +140,11 @@ Panel {
     return "file://" + root.service.posterPath(serviceId, posterId) + "?" + root.service.posterRevision
   }
 
+  function fanartSource(serviceId, posterId) {
+    if (!root.service || !posterId) return ""
+    return "file://" + root.service.fanartPath(serviceId, posterId) + "?" + root.service.posterRevision
+  }
+
   onSnapshotsChanged: root.clampSelection()
 
   Component {
@@ -508,7 +513,7 @@ Panel {
                   Column {
                     required property var modelData
                     width: parent.width
-                    spacing: Style.space(2)
+                    spacing: Style.space(6)
 
                     Text {
                       visible: parent.modelData.heading !== ""
@@ -524,46 +529,14 @@ Panel {
                     Repeater {
                       model: parent.modelData.items
 
-                      Row {
+                      CalendarCard {
                         required property var modelData
                         width: parent.width
-                        spacing: Style.space(8)
-
-                        Image {
-                          visible: !!parent.modelData.posterId
-                          width: Style.space(28)
-                          height: Style.space(42)
-                          fillMode: Image.PreserveAspectCrop
-                          asynchronous: true
-                          cache: false
-                          source: root.posterSource(parent.modelData.serviceId, parent.modelData.posterId)
-                        }
-
-                        Column {
-                          width: parent.width - (parent.modelData.posterId ? Style.space(36) : 0)
-                          spacing: Style.space(1)
-
-                          Text {
-                            width: parent.width
-                            text: parent.parent.modelData.title
-                            color: root.contentForeground
-                            font.family: root.contentFontFamily
-                            font.pixelSize: Style.font.bodySmall
-                            font.bold: true
-                            elide: Text.ElideRight
-                            textFormat: Text.PlainText
-                          }
-
-                          Text {
-                            width: parent.width
-                            text: parent.parent.modelData.subtitle
-                            color: root.dim
-                            font.family: root.contentFontFamily
-                            font.pixelSize: Style.font.caption
-                            elide: Text.ElideRight
-                            textFormat: Text.PlainText
-                          }
-                        }
+                        item: modelData
+                        posterUrl: root.posterSource(modelData.serviceId, modelData.posterId)
+                        fanartUrl: root.fanartSource(modelData.serviceId, modelData.posterId)
+                        compact: root.compact
+                        fontFamily: root.contentFontFamily
                       }
                     }
                   }
@@ -806,7 +779,7 @@ Panel {
                   Column {
                     required property var modelData
                     width: parent.width
-                    spacing: Style.space(2)
+                    spacing: Style.space(6)
 
                     Text {
                       visible: parent.modelData.heading !== ""
@@ -822,46 +795,14 @@ Panel {
                     Repeater {
                       model: parent.modelData.items
 
-                      Row {
+                      CalendarCard {
                         required property var modelData
                         width: parent.width
-                        spacing: Style.space(8)
-
-                        Image {
-                          visible: !!parent.modelData.posterId
-                          width: Style.space(32)
-                          height: Style.space(48)
-                          fillMode: Image.PreserveAspectCrop
-                          asynchronous: true
-                          cache: false
-                          source: root.detailSnap ? root.posterSource(root.detailSnap.id, parent.modelData.posterId) : ""
-                        }
-
-                        Column {
-                          width: parent.width - Style.space(40)
-                          spacing: Style.space(1)
-
-                          Text {
-                            width: parent.width
-                            text: parent.parent.modelData.title
-                            color: root.contentForeground
-                            font.family: root.contentFontFamily
-                            font.pixelSize: Style.font.bodySmall
-                            font.bold: true
-                            elide: Text.ElideRight
-                            textFormat: Text.PlainText
-                          }
-
-                          Text {
-                            width: parent.width
-                            text: parent.parent.modelData.subtitle
-                            color: root.dim
-                            font.family: root.contentFontFamily
-                            font.pixelSize: Style.font.caption
-                            elide: Text.ElideRight
-                            textFormat: Text.PlainText
-                          }
-                        }
+                        item: modelData
+                        posterUrl: root.detailSnap ? root.posterSource(root.detailSnap.id, modelData.posterId) : ""
+                        fanartUrl: root.detailSnap ? root.fanartSource(root.detailSnap.id, modelData.posterId) : ""
+                        compact: root.compact
+                        fontFamily: root.contentFontFamily
                       }
                     }
                   }

@@ -680,6 +680,10 @@ function arrPosterUrl(base, kind, id) {
   return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/poster-250.jpg"
 }
 
+function arrFanartUrl(base, id) {
+  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/fanart-360.jpg"
+}
+
 function arrCommandUrl(base) {
   return normalizeUrl(base) + "/api/v3/command"
 }
@@ -745,6 +749,23 @@ function arrEpisodeShow(row) {
   }
 }
 
+function arrRating(ratings) {
+  var r = ratings && typeof ratings === "object" ? ratings : {}
+  if (r.imdb && Number(r.imdb.value) > 0)
+    return { value: Number(r.imdb.value), source: "imdb" }
+  if (Number(r.value) > 0)
+    return { value: Number(r.value), source: "" }
+  return { value: 0, source: "" }
+}
+
+function formatRating(value, source) {
+  var n = Number(value)
+  if (!(n > 0)) return ""
+  var text = oneDecimal(n)
+  if (source === "imdb") return "IMDb " + text
+  return text
+}
+
 function parseArrCalendar(raw, kind, pageSize) {
   var data = parseJson(raw, [])
   var list = Array.isArray(data) ? data : []
@@ -753,6 +774,7 @@ function parseArrCalendar(raw, kind, pageSize) {
   for (var i = 0; i < list.length; i++) {
     var row = list[i] || {}
     if (isRadarr) {
+      var movieRated = arrRating(row.ratings)
       out.push({
         id: String(row.id || ""),
         title: String(row.title || ""),
@@ -761,10 +783,13 @@ function parseArrCalendar(raw, kind, pageSize) {
         hasFile: !!row.hasFile,
         monitored: row.monitored !== false,
         posterId: String(row.id || ""),
+        rating: movieRated.value,
+        ratingSource: movieRated.source,
         kind: "radarr"
       })
     } else {
       var show = arrEpisodeShow(row)
+      var showRated = arrRating((row.series && row.series.ratings) || row.ratings)
       out.push({
         id: String(row.id || ""),
         title: show.title,
@@ -773,6 +798,8 @@ function parseArrCalendar(raw, kind, pageSize) {
         hasFile: !!row.hasFile,
         monitored: row.monitored !== false,
         posterId: show.id,
+        rating: showRated.value,
+        ratingSource: showRated.source,
         kind: "sonarr"
       })
     }
@@ -1133,7 +1160,9 @@ function mergeNow(snapshots, opts) {
           title: ev.title,
           subtitle: ev.subtitle,
           airDate: calendarDayKey(ev.airDate) || ev.airDate,
-          posterId: ev.posterId
+          posterId: ev.posterId,
+          rating: ev.rating || 0,
+          ratingSource: ev.ratingSource || ""
         })
       }
     }
@@ -1439,6 +1468,13 @@ function posterCachePath(cacheDir, serviceId, itemId) {
   return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + ".jpg"
 }
 
+function fanartCachePath(cacheDir, serviceId, itemId) {
+  var safe = function(value) {
+    return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
+  }
+  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-fanart.jpg"
+}
+
 function splitHttp(text) {
   var raw = String(text || "")
   var nl = raw.lastIndexOf("\n")
@@ -1526,6 +1562,7 @@ if (typeof module !== "undefined" && module.exports) {
     arrWantedUrl: arrWantedUrl,
     arrHistoryUrl: arrHistoryUrl,
     arrPosterUrl: arrPosterUrl,
+    arrFanartUrl: arrFanartUrl,
     arrCommandUrl: arrCommandUrl,
     parseArrStatus: parseArrStatus,
     parseArrQueue: parseArrQueue,
@@ -1563,6 +1600,7 @@ if (typeof module !== "undefined" && module.exports) {
     formatTimeLeft: formatTimeLeft,
     queueLine: queueLine,
     formatProgress: formatProgress,
+    formatRating: formatRating,
     barBadge: barBadge,
     barStatusText: barStatusText,
     eventsFromPoll: eventsFromPoll,
@@ -1576,6 +1614,7 @@ if (typeof module !== "undefined" && module.exports) {
     pauseAllActions: pauseAllActions,
     resumeAllActions: resumeAllActions,
     posterCachePath: posterCachePath,
+    fanartCachePath: fanartCachePath,
     splitHttp: splitHttp,
     anyDownloader: anyDownloader,
     snapshotById: snapshotById

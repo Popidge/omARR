@@ -104,5 +104,5 @@ omarchy plugin remove io.github.luccast.omarr
 ```sh
 node tests/Model.test.js
 omarchy plugin validate .
-qmllint -I "$OMARCHY_PATH/shell" BarWidget.qml Panel.qml Service.qml SettingsView.qml OmarrIcon.qml ServiceIcon.qml
+qmllint -I "$OMARCHY_PATH/shell" BarWidget.qml Panel.qml Service.qml SettingsView.qml OmarrIcon.qml ServiceIcon.qml CalendarCard.qml
 ```
