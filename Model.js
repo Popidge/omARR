@@ -187,9 +187,7 @@ function defaultSettings() {
     services: [],
     pollSeconds: DEFAULT_POLL_SECONDS,
     pageSize: LIST_PAGE_SIZE,
-    density: "comfortable",
-    showCalendar: true,
-    showQueue: true
+    density: "comfortable"
   }
 }
 
@@ -209,8 +207,9 @@ function clampPageSize(value) {
   return n
 }
 
-function normalizeService(entry, index) {
+function normalizeService(entry, index, flags) {
   var raw = entry && typeof entry === "object" ? entry : {}
+  var defaults = flags && typeof flags === "object" ? flags : {}
   var kind = kindOf(raw.kind)
   var meta = KIND_DEFAULTS[kind] || KIND_DEFAULTS.generic
   var url = normalizeUrl(raw.url)
@@ -219,6 +218,22 @@ function normalizeService(entry, index) {
   if (isNaN(order)) order = index || 0
   var id = String(raw.id || "")
   if (!id) id = "svc-" + (order + 1)
+  var showQueue
+  if (Object.prototype.hasOwnProperty.call(raw, "showQueue"))
+    showQueue = raw.showQueue === true
+  else if (kind === "sonarr" || kind === "radarr")
+    showQueue = defaults.showArrQueue === true
+  else if (kind === "sabnzbd" || kind === "qbittorrent")
+    showQueue = defaults.showQueue !== false
+  else
+    showQueue = false
+  var showCalendar
+  if (Object.prototype.hasOwnProperty.call(raw, "showCalendar"))
+    showCalendar = raw.showCalendar === true
+  else if (kind === "sonarr" || kind === "radarr")
+    showCalendar = defaults.showCalendar !== false
+  else
+    showCalendar = false
   return {
     id: id,
     kind: kind,
@@ -228,6 +243,8 @@ function normalizeService(entry, index) {
       ? normalizeGroup(raw.group, "")
       : String(meta.group),
     order: order,
+    showQueue: showQueue,
+    showCalendar: showCalendar,
     notifyGrab: raw.notifyGrab !== false,
     notifyImport: raw.notifyImport !== false,
     notifyHealth: raw.notifyHealth !== false,
@@ -239,8 +256,13 @@ function normalizeSettings(raw) {
   var base = defaultSettings()
   var data = raw && typeof raw === "object" ? raw : {}
   var services = Array.isArray(data.services) ? data.services : []
+  var flags = {
+    showQueue: data.showQueue,
+    showArrQueue: data.showArrQueue,
+    showCalendar: data.showCalendar
+  }
   var out = []
-  for (var i = 0; i < services.length; i++) out.push(normalizeService(services[i], i))
+  for (var i = 0; i < services.length; i++) out.push(normalizeService(services[i], i, flags))
   out.sort(function(a, b) { return a.order - b.order })
   for (var j = 0; j < out.length; j++) out[j].order = j
   uniquifyIds(out)
@@ -248,8 +270,6 @@ function normalizeSettings(raw) {
   base.pollSeconds = clampPoll(data.pollSeconds)
   base.pageSize = clampPageSize(data.pageSize)
   base.density = String(data.density || "") === "compact" ? "compact" : "comfortable"
-  base.showCalendar = data.showCalendar !== false
-  base.showQueue = data.showQueue !== false
   return base
 }
 
@@ -288,8 +308,6 @@ function settingsPayload(settings) {
     pollSeconds: data.pollSeconds,
     pageSize: data.pageSize,
     density: data.density,
-    showCalendar: data.showCalendar,
-    showQueue: data.showQueue,
     services: data.services
   }
 }
@@ -438,6 +456,8 @@ function applyServiceMeta(snapshot, service) {
   if (svc.name !== undefined && svc.name !== null) copy.name = String(svc.name)
   if (svc.url !== undefined && svc.url !== null) copy.url = String(svc.url)
   if (Object.prototype.hasOwnProperty.call(svc, "group")) copy.group = normalizeGroup(svc.group, "")
+  copy.showQueue = svc.showQueue === true
+  copy.showCalendar = svc.showCalendar === true
   return copy
 }
 
@@ -1192,7 +1212,9 @@ function emptySnapshot(service) {
     wanted: [],
     onDeck: [],
     recent: [],
-    sessions: []
+    sessions: [],
+    showQueue: svc.showQueue === true,
+    showCalendar: svc.showCalendar === true
   }
 }
 
@@ -1255,11 +1277,8 @@ function reuseFeedList(prev, next) {
   return before
 }
 
-function mergeNow(snapshots, opts) {
+function mergeNow(snapshots) {
   var list = Array.isArray(snapshots) ? snapshots : []
-  var options = opts && typeof opts === "object" ? opts : {}
-  var showCalendar = options.showCalendar !== false
-  var showQueue = options.showQueue !== false
   var downloads = []
   var calendar = []
   var warnings = []
@@ -1268,8 +1287,12 @@ function mergeNow(snapshots, opts) {
   var recent = []
   var downloadingCount = 0
   var downCount = 0
+  var showQueue = false
+  var showCalendar = false
   for (var i = 0; i < list.length; i++) {
     var snap = list[i] || emptySnapshot({})
+    if (snap.showQueue) showQueue = true
+    if (snap.showCalendar) showCalendar = true
     if (snap.health === "down") {
       downCount += 1
       warnings.push({
@@ -1279,7 +1302,7 @@ function mergeNow(snapshots, opts) {
         body: snap.statusText || "Unreachable"
       })
     }
-    if (showQueue) {
+    if (snap.showQueue) {
       var queueItems = toList(snap.queue)
       for (var q = 0; q < queueItems.length; q++) {
         var item = queueItems[q]
@@ -1299,7 +1322,7 @@ function mergeNow(snapshots, opts) {
         })
       }
     }
-    if (showCalendar) {
+    if (snap.showCalendar) {
       var calItems = toList(snap.calendar)
       for (var c = 0; c < calItems.length; c++) {
         var ev = calItems[c] || {}
@@ -1363,7 +1386,9 @@ function mergeNow(snapshots, opts) {
     onDeck: onDeck,
     recent: recent,
     downloadingCount: downloadingCount,
-    downCount: downCount
+    downCount: downCount,
+    showQueue: showQueue,
+    showCalendar: showCalendar
   }
 }
 
@@ -1449,7 +1474,7 @@ function formatProgress(value) {
 }
 
 function barBadge(snapshots) {
-  var merged = mergeNow(snapshots, { showCalendar: false, showQueue: true })
+  var merged = mergeNow(snapshots)
   return {
     count: merged.downCount > 0 ? merged.downCount : merged.downloadingCount,
     urgent: merged.downCount > 0
@@ -1463,6 +1488,7 @@ function barStatusText(snapshots) {
   var downloading = 0
   for (var i = 0; i < list.length; i++) {
     if (list[i].health === "down") down.push(list[i].name)
+    if (!list[i].showQueue) continue
     var queue = Array.isArray(list[i].queue) ? list[i].queue : []
     for (var q = 0; q < queue.length; q++) if (isActiveDownload(queue[q])) downloading += 1
   }

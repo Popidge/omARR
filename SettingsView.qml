@@ -26,6 +26,8 @@ Column {
   property bool formNotifyImport: true
   property bool formNotifyDownload: true
   property bool formNotifyHealth: true
+  property bool formShowQueue: false
+  property bool formShowCalendar: false
 
   readonly property bool needsKey: Model.kindNeedsApiKey(formKind)
   readonly property bool needsUser: Model.kindNeedsUserPass(formKind)
@@ -49,6 +51,8 @@ Column {
     formNotifyImport = true
     formNotifyDownload = true
     formNotifyHealth = true
+    formShowQueue = false
+    formShowCalendar = false
     editingId = ""
   }
 
@@ -62,6 +66,10 @@ Column {
       urlField.text = Model.defaultUrlForKind(formKind)
     if (!root.editingId && (!groupField.text || groupField.text === Model.kindGroup(previous)))
       groupField.text = Model.kindGroup(formKind)
+    if (!root.editingId) {
+      formShowQueue = formKind === "sabnzbd" || formKind === "qbittorrent"
+      formShowCalendar = formKind === "sonarr" || formKind === "radarr"
+    }
   }
 
   function startAdd() {
@@ -81,6 +89,8 @@ Column {
     formNotifyImport = row.notifyImport !== false
     formNotifyDownload = row.notifyDownload !== false
     formNotifyHealth = row.notifyHealth !== false
+    formShowQueue = row.showQueue === true
+    formShowCalendar = row.showCalendar === true
     var cred = root.service ? root.service.cred(row.id) : { apiKey: "", username: "", password: "" }
     apiField.text = cred.apiKey
     userField.text = cred.username
@@ -97,7 +107,9 @@ Column {
       notifyGrab: formNotifyGrab,
       notifyImport: formNotifyImport,
       notifyDownload: formNotifyDownload,
-      notifyHealth: formNotifyHealth
+      notifyHealth: formNotifyHealth,
+      showQueue: formShowQueue,
+      showCalendar: formShowCalendar
     }
     var creds = {
       apiKey: apiField.text,
@@ -116,6 +128,8 @@ Column {
     nameField.text = Model.uniqueServiceName(root.services, formKind)
     urlField.text = hit.url
     groupField.text = Model.kindGroup(hit.kind)
+    formShowQueue = formKind === "sabnzbd" || formKind === "qbittorrent"
+    formShowCalendar = formKind === "sonarr" || formKind === "radarr"
   }
 
   width: parent ? parent.width : implicitWidth
@@ -197,26 +211,6 @@ Column {
       fontFamily: root.fontFamily
       onClicked: if (root.service)
         root.service.persistSettings({ density: root.compact ? "comfortable" : "compact" })
-    }
-
-    Toggle {
-      width: parent.width
-      label: "Show calendar"
-      checked: root.service ? root.service.showCalendar === true : true
-      foreground: root.foreground
-      fontFamily: root.fontFamily
-      onClicked: if (root.service)
-        root.service.persistSettings({ showCalendar: !(root.service.showCalendar === true) })
-    }
-
-    Toggle {
-      width: parent.width
-      label: "Show download queue"
-      checked: root.service ? root.service.showQueue === true : true
-      foreground: root.foreground
-      fontFamily: root.fontFamily
-      onClicked: if (root.service)
-        root.service.persistSettings({ showQueue: !(root.service.showQueue === true) })
     }
 
     PanelSeparator { foreground: root.foreground }
@@ -527,6 +521,28 @@ Column {
       password: true
       placeholderText: "Password"
       foreground: root.foreground
+    }
+
+    Toggle {
+      width: parent.width
+      visible: root.formKind === "sonarr" || root.formKind === "radarr" || root.formKind === "sabnzbd" || root.formKind === "qbittorrent"
+      height: visible ? implicitHeight : 0
+      label: "Show queue on Overview"
+      checked: root.formShowQueue
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onClicked: root.formShowQueue = !root.formShowQueue
+    }
+
+    Toggle {
+      width: parent.width
+      visible: root.formKind === "sonarr" || root.formKind === "radarr"
+      height: visible ? implicitHeight : 0
+      label: "Show calendar on Overview"
+      checked: root.formShowCalendar
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onClicked: root.formShowCalendar = !root.formShowCalendar
     }
 
     Toggle {

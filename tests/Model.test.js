@@ -39,7 +39,7 @@ check(Array.isArray(empty.services) && empty.services.length === 0, "default ser
 checkEqual(empty.pollSeconds, 30, "default poll")
 checkEqual(empty.pageSize, 20, "default page size")
 checkEqual(empty.density, "comfortable", "default density")
-check(empty.showCalendar === true && empty.showQueue === true, "default panes")
+check(empty.showCalendar === undefined && empty.showQueue === undefined, "no global panes")
 
 var fromBar = Model.pluginSettings({
   bar: {
@@ -50,7 +50,12 @@ var fromBar = Model.pluginSettings({
         pageSize: 10,
         density: "compact",
         showCalendar: false,
-        services: [{ kind: "sonarr", url: "http://127.0.0.1:8989/", name: "TV" }]
+        showArrQueue: true,
+        showQueue: false,
+        services: [
+          { kind: "sonarr", url: "http://127.0.0.1:8989/", name: "TV" },
+          { kind: "sabnzbd", url: "http://127.0.0.1:8080/", name: "SABnzbd" }
+        ]
       }]
     }
   }
@@ -58,12 +63,22 @@ var fromBar = Model.pluginSettings({
 checkEqual(fromBar.pollSeconds, 15, "poll from shell.json")
 checkEqual(fromBar.pageSize, 10, "page size from shell.json")
 checkEqual(fromBar.density, "compact", "density from shell.json")
-check(fromBar.showCalendar === false, "calendar hidden")
-checkEqual(fromBar.services.length, 1, "one service")
+checkEqual(fromBar.services.length, 2, "two services")
 checkEqual(fromBar.services[0].kind, "sonarr", "kind")
 checkEqual(fromBar.services[0].url, "http://127.0.0.1:8989", "url stripped")
 checkEqual(fromBar.services[0].group, "Media", "default group")
 check(fromBar.services[0].notifyGrab === true, "notify grab default")
+check(fromBar.services[0].showQueue === true, "legacy showArrQueue migrates")
+check(fromBar.services[0].showCalendar === false, "legacy showCalendar migrates")
+check(fromBar.services[1].showQueue === false, "legacy showQueue off migrates to sab")
+check(fromBar.services[1].showCalendar === false, "sab has no calendar")
+check(Model.normalizeService({ kind: "sonarr" }).showQueue === false, "sonarr queue off")
+check(Model.normalizeService({ kind: "sonarr" }).showCalendar === true, "sonarr calendar on")
+check(Model.normalizeService({ kind: "sabnzbd" }).showQueue === true, "sab queue on")
+check(Model.normalizeService({ kind: "sonarr", showQueue: true }).showQueue === true, "sonarr queue opt in")
+check(!("showQueue" in Model.settingsPayload({})), "payload drops global queue")
+check(!("showCalendar" in Model.settingsPayload({})), "payload drops global calendar")
+check(!("showArrQueue" in Model.settingsPayload({})), "payload drops global arr queue")
 
 checkEqual(Model.pluginSettings({}).services.length, 0, "missing config")
 checkEqual(Model.pluginSettings({
@@ -82,6 +97,8 @@ checkEqual(idB, "svc-5", "new id increments")
 var s1 = Model.addService(Model.defaultSettings(), { kind: "sonarr", url: "http://127.0.0.1:8989" })
 checkEqual(s1.services.length, 1, "add service")
 checkEqual(s1.services[0].name, "Sonarr", "kind default name")
+check(s1.services[0].showQueue === false, "add sonarr queue off")
+check(s1.services[0].showCalendar === true, "add sonarr calendar on")
 var s2 = Model.addService(s1, { kind: "radarr", url: "http://127.0.0.1:7878" })
 checkEqual(s2.services.length, 2, "second service")
 var twoSonarr = Model.addService(s1, { kind: "sonarr", url: "http://192.168.2.200:8989", name: "Sonarr 4K" })
@@ -331,24 +348,24 @@ var mixedDates = Model.groupedCalendar([
 ], wed)
 checkEqual(mixedDates.map(function(g) { return g.day }).join(","), "Today,Tomorrow,Friday", "mixed services regroup by day")
 
-var lqSnap = Model.emptySnapshot({ id: "lq", kind: "sonarr", name: "Sonarr LQ" })
+var lqSnap = Model.emptySnapshot({ id: "lq", kind: "sonarr", name: "Sonarr LQ", showCalendar: true })
 lqSnap.health = "up"
 lqSnap.calendar = [
   { id: "1", title: "LQ Friday", airDate: "2026-08-28" },
   { id: "2", title: "LQ Today", airDate: "2026-08-26" }
 ]
-var hqSnap = Model.emptySnapshot({ id: "hq", kind: "sonarr", name: "Sonarr HQ" })
+var hqSnap = Model.emptySnapshot({ id: "hq", kind: "sonarr", name: "Sonarr HQ", showCalendar: true })
 hqSnap.health = "up"
 hqSnap.calendar = [
   { id: "3", title: "HQ Tomorrow", airDate: "2026-08-27T00:00:00Z" }
 ]
-var mergedCal = Model.mergeNow([lqSnap, hqSnap], { showCalendar: true, showQueue: false })
+var mergedCal = Model.mergeNow([lqSnap, hqSnap])
 var mergedGroups = Model.groupedCalendar(mergedCal.calendar, wed)
 checkEqual(mergedGroups.map(function(g) { return g.day }).join(","), "Today,Tomorrow,Friday", "merged now calendar by day")
 
 lqSnap.calendar[1].rating = 8.5
 lqSnap.calendar[1].ratingSource = ""
-var mergedRated = Model.mergeNow([lqSnap], { showCalendar: true, showQueue: false })
+var mergedRated = Model.mergeNow([lqSnap])
 var todayItems = mergedRated.calendar.filter(function(ev) { return ev.title === "LQ Today" })
 checkEqual(todayItems[0].rating, 8.5, "merged rating")
 
@@ -624,6 +641,7 @@ var sonarrSnap = Model.emptySnapshot({ id: "s", kind: "sonarr", name: "Sonarr", 
 sonarrSnap.health = "up"
 sonarrSnap.queue = queue
 sonarrSnap.calendar = cal
+sonarrSnap.showCalendar = true
 var radarrSnap = Model.emptySnapshot({ id: "r", kind: "radarr", name: "Radarr", url: "http://r:7878", group: "Media" })
 radarrSnap.health = "down"
 radarrSnap.statusText = "Unreachable"
@@ -631,7 +649,14 @@ var sabSnap = Model.emptySnapshot({ id: "z", kind: "sabnzbd", name: "SABnzbd", u
 sabSnap.health = "up"
 sabSnap.queue = sab.queue
 sabSnap.speed = sab.speed
-var now = Model.mergeNow([sonarrSnap, radarrSnap, sabSnap], { showCalendar: true, showQueue: true })
+sabSnap.showQueue = true
+var nowClients = Model.mergeNow([sonarrSnap, radarrSnap, sabSnap])
+checkEqual(nowClients.downloads.length, 1, "arr queue hidden by default")
+checkEqual(nowClients.downloads[0].kind, "sabnzbd", "download clients only")
+check(nowClients.showQueue === true, "queue pane from sab")
+check(nowClients.showCalendar === true, "calendar pane from sonarr")
+sonarrSnap.showQueue = true
+var now = Model.mergeNow([sonarrSnap, radarrSnap, sabSnap])
 check(now.downloads.length >= 2, "merged downloads")
 checkEqual(now.downloads[0].protocol, "torrent", "merged protocol")
 check(now.calendar.length >= 1, "merged calendar")
@@ -652,7 +677,7 @@ var plexIdle = Model.emptySnapshot({ id: "p", kind: "plex", name: "Plex" })
 plexIdle.health = "up"
 plexIdle.onDeck = plexDeck
 check(Model.fleetLine(plexIdle).indexOf("on deck") !== -1, "fleet on deck")
-var plexNowFeed = Model.mergeNow([plexSnap], { showCalendar: true, showQueue: true })
+var plexNowFeed = Model.mergeNow([plexSnap])
 checkEqual(plexNowFeed.sessions.length, 1, "merged sessions")
 check(plexNowFeed.onDeck.length >= 1, "merged ondeck")
 check(plexNowFeed.recent.length >= 2, "merged recent")
@@ -673,7 +698,16 @@ check(Model.toastTitle(added).indexOf("added") !== -1, "plex added toast")
 var badge = Model.barBadge([sonarrSnap, radarrSnap, sabSnap])
 check(badge.urgent === true, "badge urgent when down")
 check(badge.count >= 1, "badge count")
+sonarrSnap.showQueue = false
+checkEqual(Model.barBadge([sonarrSnap]).count, 0, "arr queue not in badge by default")
+sonarrSnap.showQueue = true
+check(Model.barBadge([sonarrSnap]).count >= 1, "arr queue in badge when on")
 check(Model.barStatusText([sonarrSnap, radarrSnap]).indexOf("Radarr") !== -1, "bar status names down")
+sonarrSnap.showQueue = false
+check(Model.barStatusText([sonarrSnap]).indexOf("downloading") === -1, "bar status skips arr queue")
+sonarrSnap.showQueue = true
+check(Model.barStatusText([sonarrSnap]).indexOf("downloading") !== -1, "bar status counts arr queue")
+sonarrSnap.showQueue = false
 
 var prev = Model.emptySnapshot({ id: "s", kind: "sonarr", name: "Sonarr", url: "http://s", group: "Media" })
 prev.health = "up"

@@ -43,8 +43,6 @@ Item {
   readonly property var services: pluginSettings.services
   readonly property int pollSeconds: pluginSettings.pollSeconds
   readonly property int pageSize: pluginSettings.pageSize
-  readonly property bool showCalendar: pluginSettings.showCalendar === true
-  readonly property bool showQueue: pluginSettings.showQueue === true
   readonly property string density: pluginSettings.density
   readonly property bool configured: services.length > 0
 
@@ -325,10 +323,7 @@ Item {
   }
 
   function refreshDerived() {
-    var next = Model.mergeNow(root.snapshots, {
-      showCalendar: root.showCalendar,
-      showQueue: root.showQueue
-    })
+    var next = Model.mergeNow(root.snapshots)
     var deck = Model.reuseFeedList(root.onDeckFeed, next.onDeck)
     var recent = Model.reuseFeedList(root.recentFeed, next.recent)
     var calendar = Model.reuseFeedList(root.calendarFeed, next.calendar)

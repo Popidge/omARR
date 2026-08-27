@@ -24,14 +24,14 @@ Panel {
   readonly property color dim: Qt.darker(contentForeground, 1.4)
   readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
-  readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0 })
+  readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0, showQueue: false, showCalendar: false })
   readonly property var calendarGroups: Model.groupedCalendar(service && service.calendarFeed ? service.calendarFeed : [])
   readonly property var homeTabModel: {
     var tabs = [
       { id: "ondeck", label: "ON DECK" },
       { id: "recent", label: "RECENTLY ADDED" }
     ]
-    if (root.service && root.service.showCalendar)
+    if (root.nowFeed.showCalendar)
       tabs.push({ id: "calendar", label: "CALENDAR" })
     return tabs
   }
@@ -599,7 +599,7 @@ Panel {
                 }
 
                 PanelSectionHeader {
-                  visible: root.service && root.service.showQueue && (root.nowFeed.downloads || []).length > 0
+                  visible: root.nowFeed.showQueue && (root.nowFeed.downloads || []).length > 0
                   text: "DOWNLOADING"
                   foreground: root.contentForeground
                   fontFamily: root.contentFontFamily
@@ -651,7 +651,7 @@ Panel {
                 }
 
                 Text {
-                  visible: root.service && root.service.showQueue && (!root.nowFeed.downloads || root.nowFeed.downloads.length === 0)
+                  visible: root.nowFeed.showQueue && (!root.nowFeed.downloads || root.nowFeed.downloads.length === 0)
                     && !(root.nowFeed.sessions || []).length
                   width: parent.width
                   text: "Queue is quiet."

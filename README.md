@@ -47,6 +47,8 @@ First open is an empty overview. Add a service by kind, or **Scan local ports** 
 | Plex | token | Now playing, on deck, recently added | Open in browser |
 | qBittorrent | username + password | Torrents, transfer speed | Pause / resume torrent or all |
 
+Overview shows a service’s queue or *arr calendar only when that service has the matching toggle on. SABnzbd and qBittorrent queues default on; Sonarr and Radarr queues default off.
+
 Layout (names, URLs, groups, order, notification flags, poll interval, queue page size, density) is stored in `~/.config/omarchy/shell.json`. API keys, Plex tokens, and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
 
 ## Icons
