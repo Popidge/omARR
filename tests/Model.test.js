@@ -391,6 +391,31 @@ checkEqual(Model.formatBytes(1048576), "1.0 MB", "bytes")
 check(Model.formatEta(90).indexOf("m") !== -1 || Model.formatEta(90).indexOf("s") !== -1, "eta")
 checkEqual(Model.kindLabel("qbittorrent"), "qBittorrent", "kind label")
 
+checkEqual(Model.iconSlug({ kind: "radarr" }), "radarr", "radarr kind icon")
+checkEqual(Model.iconSlug({ kind: "sonarr", name: "Sonarr LQ" }), "sonarr", "sonarr kind wins")
+checkEqual(Model.iconSlug({ kind: "sabnzbd" }), "sabnzbd", "sab icon")
+checkEqual(Model.iconSlug({ kind: "qbittorrent" }), "qbittorrent", "qbit icon")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Jellyfin" }), "jellyfin", "jellyfin by name")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Home Assistant" }), "home-assistant", "ha by name")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Plex" }), "plex", "plex by name")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Prowlarr" }), "prowlarr", "prowlarr by name")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Mystery Box" }), "", "unknown has no icon")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Transmission" }), "transmission", "transmission by name")
+checkEqual(Model.iconSlug({ kind: "generic", name: "Lidarr" }), "lidarr", "lidarr by name")
+checkEqual(Model.iconPageUrl("radarr"), "https://dashboardicons.com/icons/radarr", "icon page")
+checkEqual(Model.iconPageUrl(""), "", "empty icon page")
+checkEqual(Model.iconCdnUrl("radarr"), "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/radarr.svg", "icon cdn")
+check(Model.iconSlugs().indexOf("sonarr") !== -1, "bundled sonarr")
+check(Model.iconSlugs().indexOf("radarr") !== -1, "bundled radarr")
+
+var fs = require("fs")
+var path = require("path")
+var slugs = Model.iconSlugs()
+check(slugs.length >= 30, "bundled icon count")
+for (var i = 0; i < slugs.length; i++) {
+  check(fs.existsSync(path.join(__dirname, "..", "icons", slugs[i] + ".svg")), "svg " + slugs[i])
+}
+
 checkEqual(Model.posterCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12.jpg", "poster path")
 
 if (fails) {

@@ -8,7 +8,7 @@ omARR runs inside the long-lived `omarchy-shell` process, unsandboxed, with your
 - Desktop notifications via `omarchy-notification-send`.
 - The default browser via `omarchy launch browser <url>`.
 
-No telemetry. No third-party hosts. No Node, Python, or extra runtime.
+No telemetry. No third-party hosts. No Node, Python, or extra runtime. Dashboard Icons are bundled under `icons/` and never fetched from a CDN.
 
 ## Credentials
 

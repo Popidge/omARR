@@ -275,18 +275,30 @@ Column {
           foreground: root.foreground
           accent: Color.accent
 
-          Text {
-            id: scanLabel
+          Row {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             anchors.margins: Style.space(6)
-            text: scanRow.modelData.name + " · " + scanRow.modelData.url
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            elide: Text.ElideRight
-            textFormat: Text.PlainText
+            spacing: Style.space(8)
+
+            ServiceIcon {
+              id: scanIcon
+              service: scanRow.modelData
+              iconSize: Style.space(16)
+              anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+              id: scanLabel
+              width: parent.width - scanIcon.width - parent.spacing
+              text: scanRow.modelData.name + " · " + scanRow.modelData.url
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              elide: Text.ElideRight
+              textFormat: Text.PlainText
+            }
           }
 
           MouseArea {
@@ -356,9 +368,16 @@ Column {
               anchors.margins: Style.space(6)
               spacing: Style.space(6)
 
+              ServiceIcon {
+                id: svcIcon
+                service: svcRow.modelData
+                iconSize: Style.space(16)
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
               Column {
                 id: svcCol
-                width: parent.width - Style.space(72)
+                width: parent.width - svcIcon.width - parent.spacing - Style.space(72)
                 spacing: Style.space(1)
 
                 Text {

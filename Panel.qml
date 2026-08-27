@@ -331,17 +331,18 @@ Panel {
                         anchors.margins: Style.space(6)
                         spacing: Style.space(8)
 
-                        Rectangle {
-                          width: Style.space(7)
-                          height: Style.space(7)
-                          radius: width / 2
+                        ServiceIcon {
+                          id: fleetIcon
+                          service: fleetRow.modelData
+                          health: fleetRow.modelData.health || ""
+                          healthColor: root.healthColor(fleetRow.modelData.health)
+                          iconSize: Style.space(18)
                           anchors.verticalCenter: parent.verticalCenter
-                          color: root.healthColor(fleetRow.modelData.health)
                         }
 
                         Column {
                           id: fleetCol
-                          width: parent.width - Style.space(15)
+                          width: parent.width - fleetIcon.width - parent.spacing
                           spacing: Style.space(1)
 
                           Text {
@@ -535,11 +536,24 @@ Panel {
 
                 Item {
                   width: parent.width
-                  height: Math.max(detailHeader.implicitHeight, openBtn.implicitHeight)
+                  height: Math.max(detailHeader.implicitHeight, openBtn.implicitHeight, detailIcon.height)
+
+                  ServiceIcon {
+                    id: detailIcon
+                    service: root.detailSnap || ({})
+                    health: root.detailSnap ? (root.detailSnap.health || "") : ""
+                    healthColor: root.healthColor(root.detailSnap ? root.detailSnap.health : "")
+                    iconSize: Style.space(16)
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
 
                   PanelSectionHeader {
                     id: detailHeader
-                    anchors.left: parent.left
+                    anchors.left: detailIcon.right
+                    anchors.leftMargin: Style.space(8)
+                    anchors.right: detailActions.left
+                    anchors.rightMargin: Style.space(8)
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.detailSnap ? String(root.detailSnap.name).toUpperCase() : ""
                     foreground: root.contentForeground
@@ -547,6 +561,7 @@ Panel {
                   }
 
                   Row {
+                    id: detailActions
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Style.space(2)

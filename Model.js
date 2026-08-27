@@ -83,6 +83,81 @@ function kindNeedsUserPass(kind) {
   return kindOf(kind) === "qbittorrent"
 }
 
+var ICON_SLUGS = [
+  "adguard-home", "audiobookshelf", "bazarr", "calibre-web", "deluge", "emby",
+  "grafana", "home-assistant", "immich", "jellyfin", "jellyseerr", "kavita",
+  "kodi", "komga", "lidarr", "navidrome", "nextcloud", "nginx-proxy-manager",
+  "nzbget", "overseerr", "paperless-ngx", "pi-hole", "plex", "portainer",
+  "prowlarr", "qbittorrent", "radarr", "readarr", "sabnzbd", "sonarr",
+  "syncthing", "tautulli", "traefik", "transmission", "uptime-kuma", "whisparr"
+]
+
+var ICON_ALIASES = {
+  "adguard": "adguard-home",
+  "adguardhome": "adguard-home",
+  "ha": "home-assistant",
+  "homeassistant": "home-assistant",
+  "npm": "nginx-proxy-manager",
+  "nginxproxymanager": "nginx-proxy-manager",
+  "paperless": "paperless-ngx",
+  "pihole": "pi-hole",
+  "qbit": "qbittorrent",
+  "sab": "sabnzbd",
+  "uptimekuma": "uptime-kuma"
+}
+
+function iconSlugs() {
+  return ICON_SLUGS.slice()
+}
+
+function iconPageUrl(slug) {
+  var s = String(slug || "")
+  return s ? "https://dashboardicons.com/icons/" + s : ""
+}
+
+function iconCdnUrl(slug) {
+  var s = String(slug || "")
+  return s ? "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/" + s + ".svg" : ""
+}
+
+function normalizeIconKey(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+}
+
+function slugMatchesKey(key, slug) {
+  if (!key || !slug) return false
+  if (key === slug) return true
+  if (key.indexOf(slug + "-") === 0) return true
+  if (key.indexOf("-" + slug + "-") !== -1) return true
+  var suffix = "-" + slug
+  return key.length > suffix.length && key.slice(key.length - suffix.length) === suffix
+}
+
+function lookupIconSlug(value) {
+  var key = normalizeIconKey(value)
+  if (!key) return ""
+  if (ICON_ALIASES[key]) return ICON_ALIASES[key]
+  var best = ""
+  for (var i = 0; i < ICON_SLUGS.length; i++) {
+    var slug = ICON_SLUGS[i]
+    if (slugMatchesKey(key, slug) && slug.length > best.length) best = slug
+  }
+  return best
+}
+
+function iconSlug(service) {
+  var svc = service && typeof service === "object" ? service : {}
+  var kind = kindOf(svc.kind)
+  if (kind !== "generic") return kind
+  var fromName = lookupIconSlug(svc.name)
+  if (fromName) return fromName
+  var url = String(svc.url || "")
+  var host = url.replace(/^https?:\/\//i, "").split("/")[0].split(":")[0]
+  var fromHost = lookupIconSlug(host)
+  if (fromHost) return fromHost
+  return lookupIconSlug(url)
+}
+
 function uniqueServiceName(services, kind, ignoreId) {
   var base = kindLabel(kind)
   var list = Array.isArray(services) ? services : []
@@ -1163,6 +1238,11 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeGroup: normalizeGroup,
     kindNeedsApiKey: kindNeedsApiKey,
     kindNeedsUserPass: kindNeedsUserPass,
+    ICON_SLUGS: ICON_SLUGS,
+    iconSlugs: iconSlugs,
+    iconPageUrl: iconPageUrl,
+    iconCdnUrl: iconCdnUrl,
+    iconSlug: iconSlug,
     uniqueServiceName: uniqueServiceName,
     defaultUrlForKind: defaultUrlForKind,
     defaultSettings: defaultSettings,
