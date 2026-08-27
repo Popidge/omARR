@@ -51,7 +51,10 @@ Panel {
     return Model.listPager(root.detailQueuePage, root.detailQueueModel, total, root.service ? root.service.pageSize : 0)
   }
 
-  onDetailIdChanged: if (root.service) root.service.clearDetailQueue()
+  onDetailIdChanged: {
+    if (root.service) root.service.clearDetailQueue()
+    if (contentFlick) contentFlick.contentY = 0
+  }
 
   function open() {
     if (root.service) {
@@ -150,7 +153,7 @@ Panel {
   Component {
     id: settingsComp
     SettingsView {
-      width: content.width
+      width: body.width
       service: root.service
       foreground: root.contentForeground
       fontFamily: root.contentFontFamily
@@ -185,25 +188,15 @@ Panel {
         else if (t === "o" || t === "O") root.openSelected()
       }
 
-      Flickable {
-        id: panelFlick
+      Column {
+        id: shell
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: content.implicitHeight
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        flickableDirection: Flickable.VerticalFlick
-        interactive: contentHeight > height
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        spacing: root.rowPad
 
-        Column {
-          id: content
-          width: panelFlick.width
-          spacing: root.rowPad
-
-          Item {
-            width: parent.width
-            height: Math.max(hero.implicitHeight, headerActions.implicitHeight)
+        Item {
+          id: headerBar
+          width: parent.width
+          height: Math.max(hero.implicitHeight, headerActions.implicitHeight)
 
             PanelHero {
               id: hero
@@ -256,41 +249,62 @@ Panel {
             }
           }
 
-          Loader {
-            id: settingsLoader
+          Item {
+            id: body
             width: parent.width
-            active: root.showSettings
-            visible: active
-            height: visible ? implicitHeight : 0
-            sourceComponent: settingsComp
-          }
+            height: Math.max(0, parent.height - headerBar.height - parent.spacing)
 
-          Text {
-            visible: !root.showSettings && root.snapshots.length === 0
-            width: parent.width
-            text: "Nothing on the radar yet. Open settings to add Sonarr, Radarr, SABnzbd, qBittorrent, or any local URL — or scan this machine."
-            wrapMode: Text.WordWrap
-            color: root.dim
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.bodySmall
-            font.italic: true
-          }
+            Flickable {
+              anchors.fill: parent
+              visible: root.showSettings
+              clip: true
+              contentWidth: width
+              contentHeight: settingsLoader.item ? settingsLoader.item.implicitHeight : 0
+              boundsBehavior: Flickable.StopAtBounds
+              flickableDirection: Flickable.VerticalFlick
+              interactive: contentHeight > height
+              ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-          Button {
-            visible: !root.showSettings && root.snapshots.length === 0
-            text: "Open settings"
-            foreground: root.contentForeground
-            onClicked: root.showSettings = true
-          }
+              Loader {
+                id: settingsLoader
+                width: parent.width
+                active: root.showSettings
+                visible: active
+                sourceComponent: settingsComp
+              }
+            }
 
-          Row {
-            width: parent.width
-            spacing: Style.space(12)
-            visible: !root.showSettings && root.snapshots.length > 0
-            height: visible ? implicitHeight : 0
+            Column {
+              anchors.fill: parent
+              visible: !root.showSettings && root.snapshots.length === 0
+              spacing: root.rowPad
+
+              Text {
+                width: parent.width
+                text: "Nothing on the radar yet. Open settings to add Sonarr, Radarr, SABnzbd, qBittorrent, or any local URL — or scan this machine."
+                wrapMode: Text.WordWrap
+                color: root.dim
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.bodySmall
+                font.italic: true
+              }
+
+              Button {
+                text: "Open settings"
+                foreground: root.contentForeground
+                onClicked: root.showSettings = true
+              }
+            }
+
+            Row {
+              anchors.fill: parent
+              spacing: Style.space(12)
+              visible: !root.showSettings && root.snapshots.length > 0
 
             Column {
               width: root.fleetWidth
+              height: parent.height
+              clip: true
               spacing: Style.space(6)
 
               PanelSectionHeader {
@@ -399,9 +413,22 @@ Panel {
               }
             }
 
-            Column {
+            Flickable {
+              id: contentFlick
               width: parent.width - root.fleetWidth - parent.spacing
-              spacing: Style.space(8)
+              height: parent.height
+              clip: true
+              contentWidth: width
+              contentHeight: pane.implicitHeight
+              boundsBehavior: Flickable.StopAtBounds
+              flickableDirection: Flickable.VerticalFlick
+              interactive: contentHeight > height
+              ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+              Column {
+                id: pane
+                width: contentFlick.width
+                spacing: Style.space(8)
 
               Column {
                 width: parent.width
@@ -812,4 +839,5 @@ Panel {
       }
     }
   }
+}
 }
