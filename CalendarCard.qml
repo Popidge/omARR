@@ -15,7 +15,9 @@ Item {
   readonly property color overlayDim: Qt.rgba(1, 1, 1, 0.78)
   readonly property string ratingLabel: Model.formatRating(item && item.rating, item && item.ratingSource)
 
-  width: parent ? parent.width : implicitWidth
+  readonly property int maxWidth: compact ? Style.space(200) : Style.space(240)
+
+  width: parent ? Math.min(parent.width, maxWidth) : maxWidth
   height: Math.round(width * 9 / 16)
 
   Rectangle {

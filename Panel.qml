@@ -531,7 +531,6 @@ Panel {
 
                       CalendarCard {
                         required property var modelData
-                        width: parent.width
                         item: modelData
                         posterUrl: root.posterSource(modelData.serviceId, modelData.posterId)
                         fanartUrl: root.fanartSource(modelData.serviceId, modelData.posterId)
@@ -797,7 +796,6 @@ Panel {
 
                       CalendarCard {
                         required property var modelData
-                        width: parent.width
                         item: modelData
                         posterUrl: root.detailSnap ? root.posterSource(root.detailSnap.id, modelData.posterId) : ""
                         fanartUrl: root.detailSnap ? root.fanartSource(root.detailSnap.id, modelData.posterId) : ""
