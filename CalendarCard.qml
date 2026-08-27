@@ -40,7 +40,7 @@ Item {
       source: root.fanartUrl
       fillMode: Image.PreserveAspectCrop
       asynchronous: true
-      cache: false
+      cache: true
       smooth: true
     }
 
@@ -51,7 +51,7 @@ Item {
       source: root.posterUrl
       fillMode: Image.PreserveAspectCrop
       asynchronous: true
-      cache: false
+      cache: true
       smooth: true
     }
 

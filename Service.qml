@@ -21,7 +21,12 @@ Item {
   property string detailQueueId: ""
   property string statusText: "omARR"
   property int unreadCount: 0
-  property int posterRevision: 0
+  property var artReady: ({})
+  property var artPending: ({})
+  property var artRev: ({})
+  property var onDeckFeed: []
+  property var recentFeed: []
+  property var calendarFeed: []
   property int badgeCount: 0
   property bool badgeUrgent: false
   property bool seeding: true
@@ -320,10 +325,20 @@ Item {
   }
 
   function refreshDerived() {
-    root.nowFeed = Model.mergeNow(root.snapshots, {
+    var next = Model.mergeNow(root.snapshots, {
       showCalendar: root.showCalendar,
       showQueue: root.showQueue
     })
+    var deck = Model.reuseFeedList(root.onDeckFeed, next.onDeck)
+    var recent = Model.reuseFeedList(root.recentFeed, next.recent)
+    var calendar = Model.reuseFeedList(root.calendarFeed, next.calendar)
+    if (deck !== root.onDeckFeed) root.onDeckFeed = deck
+    if (recent !== root.recentFeed) root.recentFeed = recent
+    if (calendar !== root.calendarFeed) root.calendarFeed = calendar
+    next.onDeck = root.onDeckFeed
+    next.recent = root.recentFeed
+    next.calendar = root.calendarFeed
+    root.nowFeed = next
     root.statusText = root.configured ? Model.barStatusText(root.snapshots) : "Add a service"
     var badge = Model.barBadge(root.snapshots)
     root.badgeCount = badge.count
@@ -363,7 +378,7 @@ Item {
     }
     if (!service) return
     if (req.kind === "poster") {
-      if (parsed.status >= 200 && parsed.status < 400) root.posterRevision += 1
+      root.finishArt(req.outputPath, parsed.status >= 200 && parsed.status < 400)
       return
     }
     var snap = Model.applyServiceMeta(root.cloneSnap(root.snapshotFor(service)), service)
@@ -551,6 +566,10 @@ Item {
 
   function handleFailure() {
     var req = root.currentReq
+    if (req && req.kind === "poster") {
+      root.finishArt(req.outputPath, false)
+      return
+    }
     if (!req || !Model.isHealthKind(req.kind) || req.page > 1) return
     var service = null
     for (var i = 0; i < root.services.length; i++) {
@@ -606,7 +625,7 @@ Item {
     var auth = root.cred(service.id)
     var header = auth.apiKey ? Model.headerApiKey(auth.apiKey) : ""
     for (var fid in fanarts) {
-      root.enqueue({
+      root.enqueueArt({
         kind: "poster",
         serviceId: service.id,
         url: Model.arrFanartUrl(service.url, fid),
@@ -616,7 +635,7 @@ Item {
       })
     }
     for (var id in posters) {
-      root.enqueue({
+      root.enqueueArt({
         kind: "poster",
         serviceId: service.id,
         url: Model.arrPosterUrl(service.url, service.kind, id),
@@ -722,7 +741,7 @@ Item {
         seen[id] = true
         var url = Model.plexArtUrl(service.url, item.artPath || item.thumbPath)
         if (!url) continue
-        root.enqueue({
+        root.enqueueArt({
           kind: "poster",
           serviceId: service.id,
           url: url,
@@ -852,6 +871,36 @@ Item {
     return Model.plexCachePath(root.cacheDir, serviceId, itemId)
   }
 
+  function copyMap(obj) {
+    var next = {}
+    if (!obj) return next
+    for (var k in obj) next[k] = obj[k]
+    return next
+  }
+
+  function enqueueArt(req) {
+    var path = req && req.outputPath
+    if (!path || root.artReady[path] || root.artPending[path]) return
+    var pending = root.copyMap(root.artPending)
+    pending[path] = true
+    root.artPending = pending
+    root.enqueue(req)
+  }
+
+  function finishArt(path, ok) {
+    if (!path) return
+    var pending = root.copyMap(root.artPending)
+    delete pending[path]
+    root.artPending = pending
+    if (!ok || root.artReady[path]) return
+    var ready = root.copyMap(root.artReady)
+    ready[path] = true
+    root.artReady = ready
+    var rev = root.copyMap(root.artRev)
+    rev[path] = (rev[path] || 0) + 1
+    root.artRev = rev
+  }
+
   FileView {
     id: credsFile
     path: root.credsPath
@@ -895,6 +944,27 @@ Item {
     id: ensureDirProc
     running: false
     onExited: {
+      cacheIndexProc.command = ["ls", "-1", root.cacheDir]
+      cacheIndexProc.running = true
+    }
+  }
+
+  Process {
+    id: cacheIndexProc
+    running: false
+    stdout: StdioCollector {
+      id: cacheIndexOut
+      waitForEnd: true
+    }
+    onExited: {
+      var ready = {}
+      var lines = String(cacheIndexOut.text || "").split("\n")
+      for (var i = 0; i < lines.length; i++) {
+        var name = String(lines[i] || "").replace(/^\s+|\s+$/g, "")
+        if (!name || name.indexOf(".jpg") === -1) continue
+        ready[root.cacheDir + "/" + name] = true
+      }
+      root.artReady = ready
       root.dirsReady = true
       credsFile.reload()
       seenFile.reload()

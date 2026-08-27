@@ -739,6 +739,15 @@ for (var i = 0; i < slugs.length; i++) {
 checkEqual(Model.posterCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12.jpg", "poster path")
 checkEqual(Model.fanartCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12-fanart.jpg", "fanart path")
 
+var keep = [{ id: "a", title: "Old", progress: 0.2 }]
+var newer = [{ id: "a", title: "New", progress: 0.8 }]
+var reused = Model.reuseFeedList(keep, newer)
+check(reused === keep, "reuse same ids")
+checkEqual(keep[0].title, "New", "reuse patches fields")
+checkEqual(keep[0].progress, 0.8, "reuse patches progress")
+var swapped = Model.reuseFeedList(keep, [{ id: "b", title: "Other" }])
+check(swapped !== keep, "new ids replace list")
+
 if (fails) {
   console.error(fails + " failed")
   process.exit(1)

@@ -1236,6 +1236,23 @@ function isActiveDownload(item) {
   return status.indexOf("download") !== -1 || status === "active" || (item.progress > 0 && item.progress < 1)
 }
 
+function reuseFeedList(prev, next) {
+  var before = Array.isArray(prev) ? prev : []
+  var after = Array.isArray(next) ? next : []
+  if (before.length !== after.length) return after
+  for (var i = 0; i < after.length; i++) {
+    if (String((before[i] && before[i].id) || "") !== String((after[i] && after[i].id) || ""))
+      return after
+  }
+  for (var j = 0; j < after.length; j++) {
+    var p = before[j]
+    var n = after[j]
+    if (!p || !n) continue
+    for (var k in n) p[k] = n[k]
+  }
+  return before
+}
+
 function mergeNow(snapshots, opts) {
   var list = Array.isArray(snapshots) ? snapshots : []
   var options = opts && typeof opts === "object" ? opts : {}
@@ -1794,6 +1811,7 @@ if (typeof module !== "undefined" && module.exports) {
     isHealthKind: isHealthKind,
     decideHealth: decideHealth,
     isActiveDownload: isActiveDownload,
+    reuseFeedList: reuseFeedList,
     mergeNow: mergeNow,
     fleetLine: fleetLine,
     formatSpeed: formatSpeed,

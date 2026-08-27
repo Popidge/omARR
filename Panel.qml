@@ -25,7 +25,7 @@ Panel {
   readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
   readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0 })
-  readonly property var calendarGroups: Model.groupedCalendar(nowFeed.calendar || [])
+  readonly property var calendarGroups: Model.groupedCalendar(service && service.calendarFeed ? service.calendarFeed : [])
   readonly property var homeTabModel: {
     var tabs = [
       { id: "ondeck", label: "ON DECK" },
@@ -159,17 +159,23 @@ Panel {
 
   function posterSource(serviceId, posterId) {
     if (!root.service || !posterId) return ""
-    return "file://" + root.service.posterPath(serviceId, posterId) + "?" + root.service.posterRevision
+    var path = root.service.posterPath(serviceId, posterId)
+    var rev = root.service.artRev
+    return "file://" + path + "?" + ((rev && rev[path]) || 0)
   }
 
   function fanartSource(serviceId, posterId) {
     if (!root.service || !posterId) return ""
-    return "file://" + root.service.fanartPath(serviceId, posterId) + "?" + root.service.posterRevision
+    var path = root.service.fanartPath(serviceId, posterId)
+    var rev = root.service.artRev
+    return "file://" + path + "?" + ((rev && rev[path]) || 0)
   }
 
   function plexSource(serviceId, itemId) {
     if (!root.service || !itemId) return ""
-    return "file://" + root.service.plexPath(serviceId, itemId) + "?" + root.service.posterRevision
+    var path = root.service.plexPath(serviceId, itemId)
+    var rev = root.service.artRev
+    return "file://" + path + "?" + ((rev && rev[path]) || 0)
   }
 
   function wheelDelta(event) {
@@ -679,7 +685,7 @@ Panel {
                 }
 
                 Repeater {
-                  model: root.shownHomeTab === "ondeck" ? (root.nowFeed.onDeck || []) : []
+                  model: root.shownHomeTab === "ondeck" ? (root.service && root.service.onDeckFeed ? root.service.onDeckFeed : []) : []
 
                   CalendarCard {
                     required property var modelData
@@ -692,7 +698,7 @@ Panel {
                 }
 
                 Repeater {
-                  model: root.shownHomeTab === "recent" ? (root.nowFeed.recent || []) : []
+                  model: root.shownHomeTab === "recent" ? (root.service && root.service.recentFeed ? root.service.recentFeed : []) : []
 
                   CalendarCard {
                     required property var modelData
@@ -739,9 +745,9 @@ Panel {
                 }
 
                 Text {
-                  visible: (root.shownHomeTab === "ondeck" && !(root.nowFeed.onDeck || []).length)
-                    || (root.shownHomeTab === "recent" && !(root.nowFeed.recent || []).length)
-                    || (root.shownHomeTab === "calendar" && !(root.nowFeed.calendar || []).length)
+                  visible: (root.shownHomeTab === "ondeck" && !(root.service && root.service.onDeckFeed && root.service.onDeckFeed.length))
+                    || (root.shownHomeTab === "recent" && !(root.service && root.service.recentFeed && root.service.recentFeed.length))
+                    || (root.shownHomeTab === "calendar" && !(root.service && root.service.calendarFeed && root.service.calendarFeed.length))
                   width: parent.width
                   text: root.shownHomeTab === "recent" ? "Nothing recently added."
                     : root.shownHomeTab === "calendar" ? "Calendar is empty."
