@@ -27,7 +27,7 @@ Panel {
   readonly property var calendarGroups: Model.groupedCalendar(nowFeed.calendar || [])
   readonly property bool compact: service && service.density === "compact"
   readonly property int rowPad: compact ? Style.space(4) : Style.space(8)
-  readonly property int fleetWidth: Style.space(196)
+  readonly property int fleetWidth: Style.space(152)
   readonly property bool hasDownloader: Model.anyDownloader(snapshots)
   readonly property var selectedSnap: selectedIndex >= 0 && selectedIndex < snapshots.length ? snapshots[selectedIndex] : null
   readonly property var detailSnap: Model.snapshotById(snapshots, detailId)
@@ -329,7 +329,7 @@ Panel {
               width: root.fleetWidth
               height: parent.height
               clip: true
-              spacing: Style.space(6)
+              spacing: Style.space(4)
 
               PanelSectionHeader {
                 text: "FLEET"
@@ -363,7 +363,7 @@ Panel {
                       id: fleetRow
                       required property var modelData
                       width: parent.width
-                      implicitHeight: fleetCol.implicitHeight + root.rowPad
+                      implicitHeight: fleetCol.implicitHeight + Style.space(6)
                       hasCursor: {
                         var idx = -1
                         for (var i = 0; i < root.snapshots.length; i++) {
@@ -392,15 +392,15 @@ Panel {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.margins: Style.space(6)
-                        spacing: Style.space(8)
+                        anchors.margins: Style.space(4)
+                        spacing: Style.space(6)
 
                         ServiceIcon {
                           id: fleetIcon
                           service: fleetRow.modelData
                           health: fleetRow.modelData.health || ""
                           healthColor: root.healthColor(fleetRow.modelData.health)
-                          iconSize: Style.space(18)
+                          iconSize: Style.space(16)
                           anchors.verticalCenter: parent.verticalCenter
                         }
 
