@@ -31,6 +31,26 @@ Panel {
   readonly property var selectedSnap: selectedIndex >= 0 && selectedIndex < snapshots.length ? snapshots[selectedIndex] : null
   readonly property var detailSnap: Model.snapshotById(snapshots, detailId)
   readonly property bool settingsBlocked: settingsLoader.item ? settingsLoader.item.editorOpen === true : false
+  readonly property int detailQueuePage: {
+    if (root.detailSnap && root.service && root.service.detailQueueId === root.detailSnap.id)
+      return root.service.detailQueuePage
+    return 1
+  }
+  readonly property var detailQueueModel: {
+    if (root.detailSnap && root.service && root.service.detailQueueId === root.detailSnap.id && root.service.detailQueuePage > 1)
+      return root.service.detailQueue
+    return root.detailSnap && root.detailSnap.queue ? root.detailSnap.queue : []
+  }
+  readonly property var detailPager: {
+    var total = 0
+    if (root.detailSnap && root.service && root.service.detailQueueId === root.detailSnap.id && root.service.detailQueuePage > 1)
+      total = root.service.detailQueueTotal
+    else if (root.detailSnap)
+      total = root.detailSnap.queueTotal || 0
+    return Model.listPager(root.detailQueuePage, root.detailQueueModel, total)
+  }
+
+  onDetailIdChanged: if (root.service) root.service.clearDetailQueue()
 
   function open() {
     if (root.service) {
@@ -596,7 +616,7 @@ Panel {
                 }
 
                 Repeater {
-                  model: root.detailSnap && root.detailSnap.queue ? root.detailSnap.queue : []
+                  model: root.detailQueueModel
 
                   CursorSurface {
                     id: qRow
@@ -666,6 +686,43 @@ Panel {
                           root.service.runControl(root.detailSnap.id, "resume-item", qRow.modelData.id)
                       }
                     }
+                  }
+                }
+
+                Row {
+                  visible: root.detailPager.hasPrev || root.detailPager.hasNext
+                  width: parent.width
+                  spacing: Style.space(6)
+                  height: visible ? implicitHeight : 0
+
+                  PanelActionButton {
+                    iconText: "󰁍"
+                    tooltipText: "Previous page"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    enabled: root.detailPager.hasPrev
+                    onClicked: if (root.service && root.detailSnap)
+                      root.service.turnQueuePage(root.detailSnap.id, -1)
+                  }
+
+                  Text {
+                    text: root.detailPager.label
+                    color: root.dim
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.caption
+                    verticalAlignment: Text.AlignVCenter
+                    height: parent.height
+                    textFormat: Text.PlainText
+                  }
+
+                  PanelActionButton {
+                    iconText: "󰁔"
+                    tooltipText: "Next page"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    enabled: root.detailPager.hasNext
+                    onClicked: if (root.service && root.detailSnap)
+                      root.service.turnQueuePage(root.detailSnap.id, 1)
                   }
                 }
 

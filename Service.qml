@@ -15,6 +15,10 @@ Item {
   property var snapshots: []
   property var nowFeed: ({ downloads: [], calendar: [], warnings: [], downloadingCount: 0, downCount: 0 })
   property var qbitReady: ({})
+  property var detailQueue: []
+  property int detailQueuePage: 1
+  property int detailQueueTotal: 0
+  property string detailQueueId: ""
   property string statusText: "omARR"
   property int unreadCount: 0
   property int posterRevision: 0
@@ -205,9 +209,68 @@ Item {
 
   function cloneSnap(snap) {
     var next = Model.emptySnapshot(snap)
-    var keys = ["health", "statusText", "version", "paused", "speed", "queue", "calendar", "activity", "wanted"]
+    var keys = ["health", "statusText", "version", "paused", "speed", "queue", "queuePage", "queueTotal", "calendar", "activity", "wanted"]
     for (var i = 0; i < keys.length; i++) next[keys[i]] = snap[keys[i]]
     return next
+  }
+
+  function setDetailQueue(id, page, items, total) {
+    root.detailQueueId = String(id || "")
+    root.detailQueuePage = Model.listPage(page)
+    root.detailQueue = items || []
+    root.detailQueueTotal = parseInt(total, 10) || 0
+  }
+
+  function clearDetailQueue() {
+    root.detailQueueId = ""
+    root.detailQueuePage = 1
+    root.detailQueue = []
+    root.detailQueueTotal = 0
+  }
+
+  function turnQueuePage(serviceId, delta) {
+    var service = null
+    for (var i = 0; i < root.services.length; i++) {
+      if (root.services[i].id === serviceId) service = root.services[i]
+    }
+    if (!service) return
+    var current = root.detailQueueId === serviceId ? root.detailQueuePage : 1
+    var page = Model.listPage(current + (parseInt(delta, 10) || 0))
+    if (page <= 1) {
+      root.clearDetailQueue()
+      return
+    }
+    var auth = root.cred(service.id)
+    if (service.kind === "sonarr" || service.kind === "radarr") {
+      root.enqueue({
+        kind: "arr-queue",
+        serviceId: service.id,
+        url: Model.arrQueueUrl(service.url, page),
+        headerText: auth.apiKey ? Model.headerApiKey(auth.apiKey) : "",
+        page: page
+      })
+    } else if (service.kind === "sabnzbd") {
+      root.enqueue({
+        kind: "sab-queue",
+        serviceId: service.id,
+        url: Model.sabApiUrl(service.url),
+        method: "POST",
+        bodyText: Model.sabBody(auth.apiKey, "queue", { start: String(Model.listOffset(page)) }),
+        page: page
+      })
+    } else if (service.kind === "qbittorrent") {
+      var ready = root.qbitReady[service.id] === true
+      root.enqueue({
+        kind: "qbit-torrents",
+        serviceId: service.id,
+        url: Model.qbitTorrentsUrl(service.url, page),
+        cookieRead: ready ? root.cookiePath(service.id) : "",
+        page: page
+      })
+    } else {
+      return
+    }
+    root.pump()
   }
 
   function commitSnapshot(next, service, seedEvents) {
@@ -324,7 +387,15 @@ Item {
     }
     if (req.kind === "arr-queue") {
       if (parsed.status >= 200 && parsed.status < 400) {
-        snap.queue = Model.parseArrQueue(parsed.body, service.kind)
+        var arrItems = Model.parseArrQueue(parsed.body, service.kind)
+        var arrTotal = Model.arrTotalRecords(parsed.body)
+        if (req.page > 1) {
+          root.setDetailQueue(service.id, req.page, arrItems, arrTotal)
+          return
+        }
+        snap.queue = arrItems
+        snap.queueTotal = arrTotal
+        snap.queuePage = 1
         root.commitSnapshot(snap, service)
         if (root.panelOpen) root.enqueuePosters(service, snap)
       }
@@ -347,15 +418,21 @@ Item {
     }
     if (req.kind === "sab-queue") {
       if (parsed.status < 200 || parsed.status >= 400) {
-        root.commitHealth(service, snap, parsed.status)
+        if (!(req.page > 1)) root.commitHealth(service, snap, parsed.status)
         return
       }
       var sab = Model.parseSabQueue(parsed.body)
+      if (req.page > 1) {
+        root.setDetailQueue(service.id, req.page, sab.queue, sab.total)
+        return
+      }
       root.setHealthMisses(service.id, 0)
       snap = Model.applyHttpHealth(snap, parsed.status)
       snap.paused = sab.paused
       snap.speed = sab.speed
       snap.queue = sab.queue
+      snap.queueTotal = sab.total
+      snap.queuePage = 1
       snap.statusText = sab.paused ? "Paused" : (sab.speed ? Model.formatSpeed(sab.speed) : "Idle")
       root.commitSnapshot(snap, service)
       return
@@ -389,12 +466,19 @@ Item {
         return
       }
       if (parsed.status < 200 || parsed.status >= 400) {
-        root.commitHealth(service, snap, parsed.status)
+        if (!(req.page > 1)) root.commitHealth(service, snap, parsed.status)
+        return
+      }
+      var qbitItems = Model.parseQbitTorrents(parsed.body)
+      if (req.page > 1) {
+        root.setDetailQueue(service.id, req.page, qbitItems, 0)
         return
       }
       root.setHealthMisses(service.id, 0)
       snap = Model.applyHttpHealth(snap, parsed.status)
-      snap.queue = Model.parseQbitTorrents(parsed.body)
+      snap.queue = qbitItems
+      snap.queueTotal = 0
+      snap.queuePage = 1
       root.commitSnapshot(snap, service)
       return
     }
@@ -412,7 +496,7 @@ Item {
 
   function handleFailure() {
     var req = root.currentReq
-    if (!req || !Model.isHealthKind(req.kind)) return
+    if (!req || !Model.isHealthKind(req.kind) || req.page > 1) return
     var service = null
     for (var i = 0; i < root.services.length; i++) {
       if (root.services[i].id === req.serviceId) service = root.services[i]

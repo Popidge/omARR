@@ -177,7 +177,27 @@ checkEqual(range.start, "2026-08-26", "cal start")
 checkEqual(range.end, "2026-09-02", "cal end")
 
 checkEqual(Model.arrStatusUrl("http://s:8989"), "http://s:8989/api/v3/system/status", "status url")
+checkEqual(Model.LIST_PAGE_SIZE, 20, "page size")
+checkEqual(Model.listPage(0), 1, "page min")
+checkEqual(Model.listPage(-2), 1, "page negative")
+checkEqual(Model.listPage(3), 3, "page 3")
+checkEqual(Model.listOffset(1), 0, "offset page 1")
+checkEqual(Model.listOffset(2), 20, "offset page 2")
 checkEqual(Model.arrQueueUrl("http://s:8989"), "http://s:8989/api/v3/queue?page=1&pageSize=20", "queue url")
+checkEqual(Model.arrQueueUrl("http://s:8989", 2), "http://s:8989/api/v3/queue?page=2&pageSize=20", "queue page 2")
+checkEqual(Model.arrTotalRecords('{"totalRecords":247,"records":[]}'), 247, "arr total")
+checkEqual(Model.arrTotalRecords("nope"), 0, "arr total junk")
+var pager = Model.listPager(1, 20, 247)
+checkEqual(pager.hasNext, true, "pager next")
+checkEqual(pager.hasPrev, false, "pager prev")
+checkEqual(pager.label, "1-20 of 247", "pager label")
+var pageTwo = Model.listPager(2, 20, 0)
+checkEqual(pageTwo.hasPrev, true, "unknown total prev")
+checkEqual(pageTwo.hasNext, true, "full page implies more")
+checkEqual(pageTwo.label, "21-40", "pager label no total")
+var lastPage = Model.listPager(2, 5, 0)
+checkEqual(lastPage.hasNext, false, "short page is last")
+checkEqual(Model.listPager(1, 3, 3).hasNext, false, "exact total no next")
 check(Model.arrCalendarUrl("http://s:8989", "2026-08-26", "2026-09-02").indexOf("start=2026-08-26") !== -1, "cal url")
 checkEqual(Model.arrPosterUrl("http://s:8989", "sonarr", 12), "http://s:8989/api/v3/mediacover/12/poster-250.jpg", "poster url")
 
@@ -229,6 +249,7 @@ var sab = Model.parseSabQueue(JSON.stringify({
     mbleft: "100",
     timeleft: "0:12:00",
     kbpersec: 1536,
+    noofslots: 40,
     slots: [{
       nzo_id: "SABnzbd_nzo_x",
       filename: "Show.nzb",
@@ -241,6 +262,7 @@ var sab = Model.parseSabQueue(JSON.stringify({
 }))
 check(sab.paused === false, "sab not paused")
 checkEqual(sab.queue.length, 1, "sab slots")
+checkEqual(sab.total, 40, "sab total")
 checkEqual(sab.queue[0].id, "SABnzbd_nzo_x", "sab id")
 check(sab.speed > 0, "sab speed")
 
@@ -266,10 +288,21 @@ checkEqual(xfer.speed, 2048, "qbit xfer")
 checkEqual(Model.headerApiKey("secret"), "X-Api-Key: secret\n", "api header")
 check(Model.sabBody("k", "queue").indexOf("apikey=k") !== -1, "sab body key")
 check(Model.sabBody("k", "queue").indexOf("mode=queue") !== -1, "sab body mode")
+check(Model.sabBody("k", "queue").indexOf("limit=20") !== -1, "sab queue limit")
+check(Model.sabBody("k", "queue").indexOf("start=0") !== -1, "sab queue start")
+check(Model.sabBody("k", "queue", { start: "20" }).indexOf("start=20") !== -1, "sab queue page 2")
 check(Model.qbitLoginBody("admin", "p a").indexOf("username=admin") !== -1, "qbit login")
 
 checkEqual(Model.qbitLoginUrl("http://q:8080"), "http://q:8080/api/v2/auth/login", "qbit login url")
-checkEqual(Model.qbitTorrentsUrl("http://q:8080"), "http://q:8080/api/v2/torrents/info", "qbit torrents url")
+check(Model.qbitTorrentsUrl("http://q:8080").indexOf("/api/v2/torrents/info?") !== -1, "qbit torrents url")
+check(Model.qbitTorrentsUrl("http://q:8080").indexOf("limit=20") !== -1, "qbit limit")
+check(Model.qbitTorrentsUrl("http://q:8080").indexOf("offset=0") !== -1, "qbit offset 0")
+check(Model.qbitTorrentsUrl("http://q:8080", 2).indexOf("offset=20") !== -1, "qbit page 2")
+var manyTorrents = []
+for (var ti = 0; ti < 25; ti++) {
+  manyTorrents.push({ hash: "h" + ti, name: "t" + ti, state: "pausedUP", progress: 1, dlspeed: 0, upspeed: 0, eta: 0, size: 1 })
+}
+checkEqual(Model.parseQbitTorrents(JSON.stringify(manyTorrents)).length, 20, "qbit parse cap")
 checkEqual(Model.qbitPauseUrl("http://q:8080"), "http://q:8080/api/v2/torrents/pause", "qbit pause url")
 checkEqual(Model.qbitResumeUrl("http://q:8080"), "http://q:8080/api/v2/torrents/resume", "qbit resume url")
 

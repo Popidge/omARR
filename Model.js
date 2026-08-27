@@ -3,6 +3,7 @@ var API_MAX_BYTES = 2 * 1024 * 1024
 var IMAGE_MAX_BYTES = 8 * 1024 * 1024
 var SEEN_LIMIT = 400
 var DEFAULT_POLL_SECONDS = 30
+var LIST_PAGE_SIZE = 20
 var KINDS = ["generic", "sonarr", "radarr", "sabnzbd", "qbittorrent"]
 
 var KIND_DEFAULTS = {
@@ -505,12 +506,48 @@ function arrCalendarRange(now, days) {
   return { start: isoDate(start), end: isoDate(end) }
 }
 
+function listPage(page) {
+  var n = parseInt(page, 10)
+  return n > 0 ? n : 1
+}
+
+function listOffset(page) {
+  return (listPage(page) - 1) * LIST_PAGE_SIZE
+}
+
+function capList(list, max) {
+  var n = parseInt(max, 10)
+  if (!(n > 0)) n = LIST_PAGE_SIZE
+  if (!Array.isArray(list) || list.length <= n) return Array.isArray(list) ? list : []
+  return list.slice(0, n)
+}
+
+function listPager(page, count, total) {
+  var p = listPage(page)
+  var n = Array.isArray(count) ? count.length : (parseInt(count, 10) || 0)
+  var tot = parseInt(total, 10) || 0
+  var start = (p - 1) * LIST_PAGE_SIZE
+  var from = n > 0 ? start + 1 : 0
+  var to = start + n
+  var hasPrev = p > 1
+  var hasNext = tot > 0 ? to < tot : n >= LIST_PAGE_SIZE
+  var label = ""
+  if (from) label = tot ? from + "-" + to + " of " + tot : from + "-" + to
+  return { page: p, hasPrev: hasPrev, hasNext: hasNext, from: from, to: to, total: tot, label: label }
+}
+
 function arrStatusUrl(base) {
   return normalizeUrl(base) + "/api/v3/system/status"
 }
 
-function arrQueueUrl(base) {
-  return normalizeUrl(base) + "/api/v3/queue?page=1&pageSize=20"
+function arrQueueUrl(base, page) {
+  return normalizeUrl(base) + "/api/v3/queue?page=" + listPage(page) + "&pageSize=" + LIST_PAGE_SIZE
+}
+
+function arrTotalRecords(raw) {
+  var data = parseJson(raw, {})
+  var n = parseInt(data && data.totalRecords, 10)
+  return n > 0 ? n : 0
 }
 
 function arrCalendarUrl(base, start, end) {
@@ -574,7 +611,7 @@ function parseArrQueue(raw, kind) {
       posterId: row.series && row.series.id ? String(row.series.id) : (row.movie && row.movie.id ? String(row.movie.id) : "")
     })
   }
-  return out
+  return capList(out)
 }
 
 function episodeCode(season, episode) {
@@ -613,7 +650,7 @@ function parseArrCalendar(raw, kind) {
       })
     }
   }
-  return out
+  return capList(out)
 }
 
 function parseArrWanted(raw, kind) {
@@ -642,7 +679,7 @@ function parseArrWanted(raw, kind) {
       })
     }
   }
-  return out
+  return capList(out)
 }
 
 function parseSpeedString(value, kbpersec) {
@@ -685,7 +722,8 @@ function parseSabQueue(raw) {
     paused: queue.paused === true,
     speed: parseSpeedString(queue.speed, queue.kbpersec),
     timeleft: String(queue.timeleft || ""),
-    queue: items
+    total: parseInt(queue.noofslots, 10) || items.length,
+    queue: capList(items)
   }
 }
 
@@ -729,7 +767,7 @@ function parseQbitTorrents(raw) {
       kind: "qbittorrent"
     })
   }
-  return out
+  return capList(out)
 }
 
 function parseQbitTransfer(raw) {
@@ -755,6 +793,10 @@ function formEncode(obj) {
 
 function sabBody(apiKey, mode, extra) {
   var data = { apikey: String(apiKey || ""), mode: String(mode || "queue"), output: "json" }
+  if (String(mode || "queue") === "queue") {
+    data.limit = String(LIST_PAGE_SIZE)
+    data.start = "0"
+  }
   var more = extra && typeof extra === "object" ? extra : {}
   for (var key in more) data[key] = more[key]
   return formEncode(data)
@@ -777,8 +819,9 @@ function qbitLoginUrl(base) {
   return normalizeUrl(base) + "/api/v2/auth/login"
 }
 
-function qbitTorrentsUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/info"
+function qbitTorrentsUrl(base, page) {
+  return normalizeUrl(base) + "/api/v2/torrents/info?limit=" + LIST_PAGE_SIZE +
+    "&offset=" + listOffset(page) + "&sort=dlspeed&reverse=true"
 }
 
 function qbitTransferUrl(base) {
@@ -823,6 +866,8 @@ function emptySnapshot(service) {
     paused: false,
     speed: 0,
     queue: [],
+    queuePage: 1,
+    queueTotal: 0,
     calendar: [],
     activity: [],
     wanted: []
@@ -1226,6 +1271,7 @@ if (typeof module !== "undefined" && module.exports) {
     API_MAX_BYTES: API_MAX_BYTES,
     IMAGE_MAX_BYTES: IMAGE_MAX_BYTES,
     SEEN_LIMIT: SEEN_LIMIT,
+    LIST_PAGE_SIZE: LIST_PAGE_SIZE,
     KINDS: KINDS,
     KIND_DEFAULTS: KIND_DEFAULTS,
     curlBounds: curlBounds,
@@ -1265,8 +1311,12 @@ if (typeof module !== "undefined" && module.exports) {
     serializeSeenFile: serializeSeenFile,
     rememberIds: rememberIds,
     arrCalendarRange: arrCalendarRange,
+    listPage: listPage,
+    listOffset: listOffset,
+    listPager: listPager,
     arrStatusUrl: arrStatusUrl,
     arrQueueUrl: arrQueueUrl,
+    arrTotalRecords: arrTotalRecords,
     arrCalendarUrl: arrCalendarUrl,
     arrWantedUrl: arrWantedUrl,
     arrPosterUrl: arrPosterUrl,
