@@ -290,6 +290,28 @@ checkEqual(groupedCal[1].heading, "Tomorrow · 27-08-26", "grouped tomorrow head
 checkEqual(groupedCal[0].items.length, 2, "grouped two on today")
 checkEqual(groupedCal[1].day, "Tomorrow", "grouped tomorrow")
 
+var mixedDates = Model.groupedCalendar([
+  { id: "hq-1", title: "HQ Friday", airDate: new Date(2026, 7, 28) },
+  { id: "lq-1", title: "LQ Today", airDate: "2026-08-26" },
+  { id: "hq-2", title: "HQ Tomorrow", airDate: "2026-08-27T06:00:00Z" }
+], wed)
+checkEqual(mixedDates.map(function(g) { return g.day }).join(","), "Today,Tomorrow,Friday", "mixed services regroup by day")
+
+var lqSnap = Model.emptySnapshot({ id: "lq", kind: "sonarr", name: "Sonarr LQ" })
+lqSnap.health = "up"
+lqSnap.calendar = [
+  { id: "1", title: "LQ Friday", airDate: "2026-08-28" },
+  { id: "2", title: "LQ Today", airDate: "2026-08-26" }
+]
+var hqSnap = Model.emptySnapshot({ id: "hq", kind: "sonarr", name: "Sonarr HQ" })
+hqSnap.health = "up"
+hqSnap.calendar = [
+  { id: "3", title: "HQ Tomorrow", airDate: "2026-08-27T00:00:00Z" }
+]
+var mergedCal = Model.mergeNow([lqSnap, hqSnap], { showCalendar: true, showQueue: false })
+var mergedGroups = Model.groupedCalendar(mergedCal.calendar, wed)
+checkEqual(mergedGroups.map(function(g) { return g.day }).join(","), "Today,Tomorrow,Friday", "merged now calendar by day")
+
 var movies = Model.parseArrCalendar(JSON.stringify([
   { id: 8, title: "Film", year: 2024, inCinemas: "2026-08-27", hasFile: false, monitored: true }
 ]), "radarr")

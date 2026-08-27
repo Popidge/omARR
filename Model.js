@@ -514,6 +514,12 @@ function isoDate(date) {
 var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 function calendarDayKey(value) {
+  if (value && typeof value.getFullYear === "function" && typeof value.getMonth === "function" && typeof value.getDate === "function") {
+    try {
+      if (!isNaN(value.getTime()))
+        return value.getFullYear() + "-" + pad2(value.getMonth() + 1) + "-" + pad2(value.getDate())
+    } catch (e) {}
+  }
   var text = String(value || "")
   var match = text.match(/^(\d{4}-\d{2}-\d{2})/)
   return match ? match[1] : ""
@@ -555,8 +561,16 @@ function calendarDayLabel(key, now) {
   return name
 }
 
+function toList(value) {
+  if (Array.isArray(value)) return value.slice()
+  if (!value || typeof value.length !== "number") return []
+  var out = []
+  for (var i = 0; i < value.length; i++) out.push(value[i])
+  return out
+}
+
 function groupedCalendar(events, now) {
-  var list = Array.isArray(events) ? events.slice() : []
+  var list = toList(events)
   list.sort(function(a, b) {
     var da = calendarDayKey(a && a.airDate)
     var db = calendarDayKey(b && b.airDate)
@@ -583,6 +597,11 @@ function groupedCalendar(events, now) {
     }
     map[bucket].items.push(ev)
   }
+  groups.sort(function(a, b) {
+    var da = a && a.date ? a.date : "9999-99-99"
+    var db = b && b.date ? b.date : "9999-99-99"
+    return da < db ? -1 : da > db ? 1 : 0
+  })
   return groups
 }
 
@@ -727,7 +746,7 @@ function parseArrCalendar(raw, kind, pageSize) {
         id: String(row.id || ""),
         title: String(row.title || ""),
         subtitle: String(row.year || ""),
-        airDate: String(row.inCinemas || row.digitalRelease || row.physicalRelease || ""),
+        airDate: calendarDayKey(row.inCinemas || row.digitalRelease || row.physicalRelease),
         hasFile: !!row.hasFile,
         monitored: row.monitored !== false,
         posterId: String(row.id || ""),
@@ -739,7 +758,7 @@ function parseArrCalendar(raw, kind, pageSize) {
         id: String(row.id || ""),
         title: show.title,
         subtitle: episodeCode(row.seasonNumber, row.episodeNumber) + (row.title ? " " + row.title : ""),
-        airDate: String(row.airDate || row.airDateUtc || ""),
+        airDate: calendarDayKey(row.airDate || row.airDateUtc),
         hasFile: !!row.hasFile,
         monitored: row.monitored !== false,
         posterId: show.id,
@@ -747,6 +766,12 @@ function parseArrCalendar(raw, kind, pageSize) {
       })
     }
   }
+  out.sort(function(a, b) {
+    var da = a.airDate || ""
+    var db = b.airDate || ""
+    if (da !== db) return da < db ? -1 : 1
+    return String(a.title || "").localeCompare(String(b.title || ""))
+  })
   return capList(out, pageSize)
 }
 
@@ -1033,9 +1058,10 @@ function mergeNow(snapshots, opts) {
         body: snap.statusText || "Unreachable"
       })
     }
-    if (showQueue && Array.isArray(snap.queue)) {
-      for (var q = 0; q < snap.queue.length; q++) {
-        var item = snap.queue[q]
+    if (showQueue) {
+      var queueItems = toList(snap.queue)
+      for (var q = 0; q < queueItems.length; q++) {
+        var item = queueItems[q]
         if (!isActiveDownload(item)) continue
         downloadingCount += 1
         downloads.push({
@@ -1051,9 +1077,10 @@ function mergeNow(snapshots, opts) {
         })
       }
     }
-    if (showCalendar && Array.isArray(snap.calendar)) {
-      for (var c = 0; c < snap.calendar.length; c++) {
-        var ev = snap.calendar[c]
+    if (showCalendar) {
+      var calItems = toList(snap.calendar)
+      for (var c = 0; c < calItems.length; c++) {
+        var ev = calItems[c] || {}
         calendar.push({
           id: snap.id + ":" + ev.id,
           serviceId: snap.id,
@@ -1061,13 +1088,18 @@ function mergeNow(snapshots, opts) {
           kind: snap.kind,
           title: ev.title,
           subtitle: ev.subtitle,
-          airDate: ev.airDate,
+          airDate: calendarDayKey(ev.airDate) || ev.airDate,
           posterId: ev.posterId
         })
       }
     }
   }
-  calendar.sort(function(a, b) { return String(a.airDate).localeCompare(String(b.airDate)) })
+  calendar.sort(function(a, b) {
+    var da = calendarDayKey(a.airDate)
+    var db = calendarDayKey(b.airDate)
+    if (da !== db) return da < db ? -1 : da > db ? 1 : 0
+    return String(a.title || "").localeCompare(String(b.title || ""))
+  })
   if (calendar.length > 12) calendar = calendar.slice(0, 12)
   if (downloads.length > 12) downloads = downloads.slice(0, 12)
   return {

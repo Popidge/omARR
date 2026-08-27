@@ -24,6 +24,7 @@ Panel {
   readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
   readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], downloadingCount: 0, downCount: 0 })
+  readonly property var calendarGroups: Model.groupedCalendar(nowFeed.calendar || [])
   readonly property bool compact: service && service.density === "compact"
   readonly property int rowPad: compact ? Style.space(4) : Style.space(8)
   readonly property int fleetWidth: Style.space(220)
@@ -502,8 +503,7 @@ Panel {
                 }
 
                 Repeater {
-                  model: root.service && root.service.showCalendar
-                    ? Model.groupedCalendar(root.nowFeed.calendar || []) : []
+                  model: root.service && root.service.showCalendar ? root.calendarGroups : []
 
                   Column {
                     required property var modelData
