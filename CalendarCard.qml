@@ -30,6 +30,30 @@ Item {
   readonly property bool showProgress: root.progress > 0 && root.progress < 1
   readonly property bool watched: root.item && root.item.watched === true
   readonly property bool hovered: hoverArea.containsMouse
+  readonly property bool artPending: {
+    if (fanart.status === Image.Ready) return false
+    if ((root.fanartUrl === "" || fanart.status === Image.Error) && poster.status === Image.Ready)
+      return false
+    if (root.fanartUrl !== "" && fanart.status !== Image.Error) return true
+    if (root.posterUrl !== "" && poster.status !== Image.Error) return true
+    return false
+  }
+  property bool showSpinner: false
+
+  onArtPendingChanged: {
+    if (artPending) {
+      spinDelay.restart()
+    } else {
+      spinDelay.stop()
+      showSpinner = false
+    }
+  }
+
+  Timer {
+    id: spinDelay
+    interval: 90
+    onTriggered: root.showSpinner = true
+  }
 
   width: parent ? parent.width : implicitWidth
   height: Math.round(width * 9 / 16)
@@ -65,7 +89,8 @@ Item {
     Image {
       id: fanart
       anchors.fill: parent
-      visible: root.fanartUrl !== "" && status === Image.Ready
+      visible: root.fanartUrl !== ""
+      opacity: status === Image.Ready ? 1 : 0
       source: root.fanartUrl
       sourceSize: root.layerSize
       fillMode: Image.PreserveAspectCrop
@@ -73,12 +98,17 @@ Item {
       cache: true
       smooth: true
       mipmap: true
+
+      Behavior on opacity {
+        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+      }
     }
 
     Image {
       id: poster
       anchors.fill: parent
-      visible: !fanart.visible && root.posterUrl !== "" && status === Image.Ready
+      visible: root.posterUrl !== "" && fanart.status !== Image.Ready
+      opacity: status === Image.Ready ? 1 : 0
       source: root.posterUrl
       sourceSize: root.layerSize
       fillMode: Image.PreserveAspectCrop
@@ -86,6 +116,30 @@ Item {
       cache: true
       smooth: true
       mipmap: true
+
+      Behavior on opacity {
+        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+      }
+    }
+
+    OmarrIcon {
+      anchors.centerIn: parent
+      iconSize: Style.space(28)
+      color: root.overlayText
+      opacity: root.showSpinner ? 0.72 : 0
+      visible: opacity > 0.01
+
+      Behavior on opacity {
+        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+      }
+
+      RotationAnimation on rotation {
+        from: 0
+        to: 360
+        duration: 1100
+        loops: Animation.Infinite
+        running: root.showSpinner
+      }
     }
 
       Rectangle {
