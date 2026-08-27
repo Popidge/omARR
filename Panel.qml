@@ -496,52 +496,74 @@ Panel {
 
                 PanelSectionHeader {
                   visible: root.service && root.service.showCalendar && (root.nowFeed.calendar || []).length > 0
-                  text: "TONIGHT"
+                  text: "CALENDAR"
                   foreground: root.contentForeground
                   fontFamily: root.contentFontFamily
                 }
 
                 Repeater {
-                  model: root.nowFeed.calendar || []
+                  model: root.service && root.service.showCalendar
+                    ? Model.groupedCalendar(root.nowFeed.calendar || []) : []
 
-                  Row {
+                  Column {
                     required property var modelData
                     width: parent.width
-                    spacing: Style.space(8)
+                    spacing: Style.space(2)
 
-                    Image {
-                      visible: !!parent.modelData.posterId
-                      width: Style.space(28)
-                      height: Style.space(42)
-                      fillMode: Image.PreserveAspectCrop
-                      asynchronous: true
-                      cache: false
-                      source: root.posterSource(parent.modelData.serviceId, parent.modelData.posterId)
+                    Text {
+                      visible: parent.modelData.day !== ""
+                      width: parent.width
+                      text: parent.modelData.day
+                      color: root.dim
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      font.bold: true
+                      textFormat: Text.PlainText
                     }
 
-                    Column {
-                      width: parent.width - (parent.modelData.posterId ? Style.space(36) : 0)
-                      spacing: Style.space(1)
+                    Repeater {
+                      model: parent.modelData.items
 
-                      Text {
+                      Row {
+                        required property var modelData
                         width: parent.width
-                        text: parent.parent.modelData.title
-                        color: root.contentForeground
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.bodySmall
-                        font.bold: true
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                      }
+                        spacing: Style.space(8)
 
-                      Text {
-                        width: parent.width
-                        text: parent.parent.modelData.subtitle + (parent.parent.modelData.airDate ? " · " + parent.parent.modelData.airDate : "")
-                        color: root.dim
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
+                        Image {
+                          visible: !!parent.modelData.posterId
+                          width: Style.space(28)
+                          height: Style.space(42)
+                          fillMode: Image.PreserveAspectCrop
+                          asynchronous: true
+                          cache: false
+                          source: root.posterSource(parent.modelData.serviceId, parent.modelData.posterId)
+                        }
+
+                        Column {
+                          width: parent.width - (parent.modelData.posterId ? Style.space(36) : 0)
+                          spacing: Style.space(1)
+
+                          Text {
+                            width: parent.width
+                            text: parent.parent.modelData.title
+                            color: root.contentForeground
+                            font.family: root.contentFontFamily
+                            font.pixelSize: Style.font.bodySmall
+                            font.bold: true
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                          }
+
+                          Text {
+                            width: parent.width
+                            text: parent.parent.modelData.subtitle
+                            color: root.dim
+                            font.family: root.contentFontFamily
+                            font.pixelSize: Style.font.caption
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                          }
+                        }
                       }
                     }
                   }
@@ -727,46 +749,68 @@ Panel {
                 }
 
                 Repeater {
-                  model: root.detailSnap && root.detailSnap.calendar ? root.detailSnap.calendar : []
+                  model: root.detailSnap && root.detailSnap.calendar
+                    ? Model.groupedCalendar(root.detailSnap.calendar) : []
 
-                  Row {
+                  Column {
                     required property var modelData
                     width: parent.width
-                    spacing: Style.space(8)
+                    spacing: Style.space(2)
 
-                    Image {
-                      visible: !!parent.modelData.posterId
-                      width: Style.space(32)
-                      height: Style.space(48)
-                      fillMode: Image.PreserveAspectCrop
-                      asynchronous: true
-                      cache: false
-                      source: root.detailSnap ? root.posterSource(root.detailSnap.id, parent.modelData.posterId) : ""
+                    Text {
+                      visible: parent.modelData.day !== ""
+                      width: parent.width
+                      text: parent.modelData.day
+                      color: root.dim
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      font.bold: true
+                      textFormat: Text.PlainText
                     }
 
-                    Column {
-                      width: parent.width - Style.space(40)
-                      spacing: Style.space(1)
+                    Repeater {
+                      model: parent.modelData.items
 
-                      Text {
+                      Row {
+                        required property var modelData
                         width: parent.width
-                        text: parent.parent.modelData.title
-                        color: root.contentForeground
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.bodySmall
-                        font.bold: true
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                      }
+                        spacing: Style.space(8)
 
-                      Text {
-                        width: parent.width
-                        text: parent.parent.modelData.subtitle
-                        color: root.dim
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
+                        Image {
+                          visible: !!parent.modelData.posterId
+                          width: Style.space(32)
+                          height: Style.space(48)
+                          fillMode: Image.PreserveAspectCrop
+                          asynchronous: true
+                          cache: false
+                          source: root.detailSnap ? root.posterSource(root.detailSnap.id, parent.modelData.posterId) : ""
+                        }
+
+                        Column {
+                          width: parent.width - Style.space(40)
+                          spacing: Style.space(1)
+
+                          Text {
+                            width: parent.width
+                            text: parent.parent.modelData.title
+                            color: root.contentForeground
+                            font.family: root.contentFontFamily
+                            font.pixelSize: Style.font.bodySmall
+                            font.bold: true
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                          }
+
+                          Text {
+                            width: parent.width
+                            text: parent.parent.modelData.subtitle
+                            color: root.dim
+                            font.family: root.contentFontFamily
+                            font.pixelSize: Style.font.caption
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                          }
+                        }
                       }
                     }
                   }

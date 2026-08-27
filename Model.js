@@ -511,6 +511,66 @@ function isoDate(date) {
   return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate())
 }
 
+var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+function calendarDayKey(value) {
+  var text = String(value || "")
+  var match = text.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ""
+}
+
+function localDayKey(date) {
+  var d = date instanceof Date ? date : new Date(date)
+  if (isNaN(d.getTime())) d = new Date()
+  return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
+}
+
+function dateFromDayKey(key) {
+  var parts = String(key || "").split("-")
+  if (parts.length < 3) return null
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+  return isNaN(d.getTime()) ? null : d
+}
+
+function calendarDayLabel(key, now) {
+  var day = calendarDayKey(key)
+  if (!day) return ""
+  var today = localDayKey(now || new Date())
+  if (day === today) return "Today"
+  var todayDate = dateFromDayKey(today)
+  var dayDate = dateFromDayKey(day)
+  if (!todayDate || !dayDate) return day
+  var tomorrow = new Date(todayDate.getTime())
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  if (day === localDayKey(tomorrow)) return "Tomorrow"
+  var name = WEEKDAYS[dayDate.getDay()] || day
+  if (WEEKDAYS[todayDate.getDay()] === name && day !== today) return "Next " + name
+  return name
+}
+
+function groupedCalendar(events, now) {
+  var list = Array.isArray(events) ? events.slice() : []
+  list.sort(function(a, b) {
+    var da = calendarDayKey(a && a.airDate)
+    var db = calendarDayKey(b && b.airDate)
+    if (da !== db) return da < db ? -1 : 1
+    return String(a && a.title || "").localeCompare(String(b && b.title || ""))
+  })
+  var groups = []
+  var map = {}
+  for (var i = 0; i < list.length; i++) {
+    var ev = list[i] || {}
+    var key = calendarDayKey(ev.airDate)
+    var bucket = key || "_"
+    if (!map[bucket]) {
+      map[bucket] = { day: key ? calendarDayLabel(key, now) : "", date: key, items: [] }
+      groups.push(map[bucket])
+    }
+    map[bucket].items.push(ev)
+  }
+  return groups
+}
+
 function arrCalendarRange(now, days) {
   var start = now instanceof Date ? new Date(now.getTime()) : new Date(now)
   var count = parseInt(days, 10)
@@ -1327,6 +1387,9 @@ if (typeof module !== "undefined" && module.exports) {
     removeService: removeService,
     moveService: moveService,
     groupedServices: groupedServices,
+    calendarDayKey: calendarDayKey,
+    calendarDayLabel: calendarDayLabel,
+    groupedCalendar: groupedCalendar,
     applyServiceMeta: applyServiceMeta,
     parseCredentials: parseCredentials,
     serializeCredentials: serializeCredentials,

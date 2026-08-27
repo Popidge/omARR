@@ -266,7 +266,25 @@ var calBare = Model.parseArrCalendar(JSON.stringify([
   { id: 6, title: "Naked Episode", seasonNumber: 1, episodeNumber: 1 }
 ]), "sonarr")
 checkEqual(calBare[0].title, "", "cal no series not episode title")
-checkEqual(calBare[0].subtitle.indexOf("Naked Episode") !== -1, true, "cal episode in subtitle")
+check(calBare[0].subtitle.indexOf("Naked Episode") !== -1, "cal episode in subtitle")
+
+checkEqual(Model.calendarDayKey("2026-08-26"), "2026-08-26", "day key date")
+checkEqual(Model.calendarDayKey("2026-08-26T02:00:00Z"), "2026-08-26", "day key iso")
+checkEqual(Model.calendarDayKey(""), "", "day key empty")
+var wed = new Date(2026, 7, 26)
+checkEqual(Model.calendarDayLabel("2026-08-26", wed), "Today", "label today")
+checkEqual(Model.calendarDayLabel("2026-08-27", wed), "Tomorrow", "label tomorrow")
+checkEqual(Model.calendarDayLabel("2026-08-28", wed), "Friday", "label friday")
+checkEqual(Model.calendarDayLabel("2026-09-02", wed), "Next Wednesday", "label next week")
+var groupedCal = Model.groupedCalendar([
+  { id: "1", title: "B", airDate: "2026-08-27" },
+  { id: "2", title: "A", airDate: "2026-08-26" },
+  { id: "3", title: "C", airDate: "2026-08-26T18:00:00Z" }
+], wed)
+checkEqual(groupedCal.length, 2, "grouped two days")
+checkEqual(groupedCal[0].day, "Today", "grouped today first")
+checkEqual(groupedCal[0].items.length, 2, "grouped two on today")
+checkEqual(groupedCal[1].day, "Tomorrow", "grouped tomorrow")
 
 var movies = Model.parseArrCalendar(JSON.stringify([
   { id: 8, title: "Film", year: 2024, inCinemas: "2026-08-27", hasFile: false, monitored: true }
