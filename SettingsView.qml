@@ -168,6 +168,23 @@ Column {
       onModified: function(v) { if (root.service) root.service.persistSettings({ pollSeconds: v }) }
     }
 
+    NumberField {
+      width: parent.width
+      label: "Queue page size"
+      value: root.service ? root.service.pageSize : Model.LIST_PAGE_SIZE
+      from: Model.PAGE_SIZE_MIN
+      to: Model.PAGE_SIZE_MAX
+      stepSize: 5
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onModified: function(v) {
+        if (!root.service) return
+        root.service.persistSettings({ pageSize: v })
+        root.service.clearDetailQueue()
+        root.service.forcePoll()
+      }
+    }
+
     Toggle {
       width: parent.width
       label: "Compact density"

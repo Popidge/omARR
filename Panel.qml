@@ -47,7 +47,7 @@ Panel {
       total = root.service.detailQueueTotal
     else if (root.detailSnap)
       total = root.detailSnap.queueTotal || 0
-    return Model.listPager(root.detailQueuePage, root.detailQueueModel, total)
+    return Model.listPager(root.detailQueuePage, root.detailQueueModel, total, root.service ? root.service.pageSize : 0)
   }
 
   onDetailIdChanged: if (root.service) root.service.clearDetailQueue()

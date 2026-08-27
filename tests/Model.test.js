@@ -37,6 +37,7 @@ check(Model.isHttpUrl("") === false, "empty url rejected")
 var empty = Model.defaultSettings()
 check(Array.isArray(empty.services) && empty.services.length === 0, "default services")
 checkEqual(empty.pollSeconds, 30, "default poll")
+checkEqual(empty.pageSize, 20, "default page size")
 checkEqual(empty.density, "comfortable", "default density")
 check(empty.showCalendar === true && empty.showQueue === true, "default panes")
 
@@ -46,6 +47,7 @@ var fromBar = Model.pluginSettings({
       right: [{
         id: Model.PLUGIN_ID,
         pollSeconds: 15,
+        pageSize: 10,
         density: "compact",
         showCalendar: false,
         services: [{ kind: "sonarr", url: "http://127.0.0.1:8989/", name: "TV" }]
@@ -54,6 +56,7 @@ var fromBar = Model.pluginSettings({
   }
 })
 checkEqual(fromBar.pollSeconds, 15, "poll from shell.json")
+checkEqual(fromBar.pageSize, 10, "page size from shell.json")
 checkEqual(fromBar.density, "compact", "density from shell.json")
 check(fromBar.showCalendar === false, "calendar hidden")
 checkEqual(fromBar.services.length, 1, "one service")
@@ -178,6 +181,18 @@ checkEqual(range.end, "2026-09-02", "cal end")
 
 checkEqual(Model.arrStatusUrl("http://s:8989"), "http://s:8989/api/v3/system/status", "status url")
 checkEqual(Model.LIST_PAGE_SIZE, 20, "page size")
+checkEqual(Model.clampPageSize(10), 10, "page size ok")
+checkEqual(Model.clampPageSize(1), 5, "page size min")
+checkEqual(Model.clampPageSize(999), 50, "page size max")
+checkEqual(Model.clampPageSize("nope"), 20, "page size fallback")
+checkEqual(Model.normalizeSettings({ pageSize: 40 }).pageSize, 40, "normalize page size")
+checkEqual(Model.listOffset(2, 10), 10, "offset custom size")
+checkEqual(Model.arrQueueUrl("http://s:8989", 2, 10), "http://s:8989/api/v3/queue?page=2&pageSize=10", "arr custom page size")
+check(Model.qbitTorrentsUrl("http://q:8080", 2, 10).indexOf("limit=10") !== -1, "qbit custom limit")
+check(Model.qbitTorrentsUrl("http://q:8080", 2, 10).indexOf("offset=10") !== -1, "qbit custom offset")
+check(Model.sabBody("k", "queue", null, 10).indexOf("limit=10") !== -1, "sab custom limit")
+checkEqual(Model.listPager(1, 10, 25, 10).label, "1-10 of 25", "pager custom label")
+checkEqual(Model.listPager(2, 10, 0, 10).hasNext, true, "pager custom full page")
 checkEqual(Model.listPage(0), 1, "page min")
 checkEqual(Model.listPage(-2), 1, "page negative")
 checkEqual(Model.listPage(3), 3, "page 3")
@@ -303,6 +318,7 @@ for (var ti = 0; ti < 25; ti++) {
   manyTorrents.push({ hash: "h" + ti, name: "t" + ti, state: "pausedUP", progress: 1, dlspeed: 0, upspeed: 0, eta: 0, size: 1 })
 }
 checkEqual(Model.parseQbitTorrents(JSON.stringify(manyTorrents)).length, 20, "qbit parse cap")
+checkEqual(Model.parseQbitTorrents(JSON.stringify(manyTorrents), 10).length, 10, "qbit parse custom cap")
 checkEqual(Model.qbitPauseUrl("http://q:8080"), "http://q:8080/api/v2/torrents/pause", "qbit pause url")
 checkEqual(Model.qbitResumeUrl("http://q:8080"), "http://q:8080/api/v2/torrents/resume", "qbit resume url")
 

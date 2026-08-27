@@ -37,6 +37,7 @@ Item {
   readonly property var pluginSettings: Model.pluginSettings(shell ? shell.shellConfig : null, Model.PLUGIN_ID)
   readonly property var services: pluginSettings.services
   readonly property int pollSeconds: pluginSettings.pollSeconds
+  readonly property int pageSize: pluginSettings.pageSize
   readonly property bool showCalendar: pluginSettings.showCalendar === true
   readonly property bool showQueue: pluginSettings.showQueue === true
   readonly property string density: pluginSettings.density
@@ -245,7 +246,7 @@ Item {
       root.enqueue({
         kind: "arr-queue",
         serviceId: service.id,
-        url: Model.arrQueueUrl(service.url, page),
+        url: Model.arrQueueUrl(service.url, page, root.pageSize),
         headerText: auth.apiKey ? Model.headerApiKey(auth.apiKey) : "",
         page: page
       })
@@ -255,7 +256,7 @@ Item {
         serviceId: service.id,
         url: Model.sabApiUrl(service.url),
         method: "POST",
-        bodyText: Model.sabBody(auth.apiKey, "queue", { start: String(Model.listOffset(page)) }),
+        bodyText: Model.sabBody(auth.apiKey, "queue", { start: String(Model.listOffset(page, root.pageSize)) }, root.pageSize),
         page: page
       })
     } else if (service.kind === "qbittorrent") {
@@ -263,7 +264,7 @@ Item {
       root.enqueue({
         kind: "qbit-torrents",
         serviceId: service.id,
-        url: Model.qbitTorrentsUrl(service.url, page),
+        url: Model.qbitTorrentsUrl(service.url, page, root.pageSize),
         cookieRead: ready ? root.cookiePath(service.id) : "",
         page: page
       })
@@ -387,7 +388,7 @@ Item {
     }
     if (req.kind === "arr-queue") {
       if (parsed.status >= 200 && parsed.status < 400) {
-        var arrItems = Model.parseArrQueue(parsed.body, service.kind)
+        var arrItems = Model.parseArrQueue(parsed.body, service.kind, root.pageSize)
         var arrTotal = Model.arrTotalRecords(parsed.body)
         if (req.page > 1) {
           root.setDetailQueue(service.id, req.page, arrItems, arrTotal)
@@ -403,7 +404,7 @@ Item {
     }
     if (req.kind === "arr-calendar") {
       if (parsed.status >= 200 && parsed.status < 400) {
-        snap.calendar = Model.parseArrCalendar(parsed.body, service.kind)
+        snap.calendar = Model.parseArrCalendar(parsed.body, service.kind, root.pageSize)
         root.commitSnapshot(snap, service)
         if (root.panelOpen) root.enqueuePosters(service, snap)
       }
@@ -421,7 +422,7 @@ Item {
         if (!(req.page > 1)) root.commitHealth(service, snap, parsed.status)
         return
       }
-      var sab = Model.parseSabQueue(parsed.body)
+      var sab = Model.parseSabQueue(parsed.body, root.pageSize)
       if (req.page > 1) {
         root.setDetailQueue(service.id, req.page, sab.queue, sab.total)
         return
@@ -469,7 +470,7 @@ Item {
         if (!(req.page > 1)) root.commitHealth(service, snap, parsed.status)
         return
       }
-      var qbitItems = Model.parseQbitTorrents(parsed.body)
+      var qbitItems = Model.parseQbitTorrents(parsed.body, root.pageSize)
       if (req.page > 1) {
         root.setDetailQueue(service.id, req.page, qbitItems, 0)
         return
@@ -561,7 +562,7 @@ Item {
     var header = auth.apiKey ? Model.headerApiKey(auth.apiKey) : ""
     var range = Model.arrCalendarRange(new Date(), 7)
     root.enqueue({ kind: "arr-status", serviceId: service.id, url: Model.arrStatusUrl(service.url), headerText: header })
-    root.enqueue({ kind: "arr-queue", serviceId: service.id, url: Model.arrQueueUrl(service.url), headerText: header })
+    root.enqueue({ kind: "arr-queue", serviceId: service.id, url: Model.arrQueueUrl(service.url, 1, root.pageSize), headerText: header })
     root.enqueue({ kind: "arr-calendar", serviceId: service.id, url: Model.arrCalendarUrl(service.url, range.start, range.end), headerText: header })
     if (root.panelOpen)
       root.enqueue({ kind: "arr-wanted", serviceId: service.id, url: Model.arrWantedUrl(service.url, service.kind), headerText: header })
@@ -574,7 +575,7 @@ Item {
       serviceId: service.id,
       url: Model.sabApiUrl(service.url),
       method: "POST",
-      bodyText: Model.sabBody(auth.apiKey, "queue")
+      bodyText: Model.sabBody(auth.apiKey, "queue", null, root.pageSize)
     })
     root.enqueue({
       kind: "sab-history",
@@ -608,7 +609,7 @@ Item {
     root.enqueue({
       kind: "qbit-torrents",
       serviceId: service.id,
-      url: Model.qbitTorrentsUrl(service.url),
+      url: Model.qbitTorrentsUrl(service.url, 1, root.pageSize),
       cookieRead: ready || skipLogin ? jar : ""
     })
     root.enqueue({

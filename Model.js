@@ -4,6 +4,8 @@ var IMAGE_MAX_BYTES = 8 * 1024 * 1024
 var SEEN_LIMIT = 400
 var DEFAULT_POLL_SECONDS = 30
 var LIST_PAGE_SIZE = 20
+var PAGE_SIZE_MIN = 5
+var PAGE_SIZE_MAX = 50
 var KINDS = ["generic", "sonarr", "radarr", "sabnzbd", "qbittorrent"]
 
 var KIND_DEFAULTS = {
@@ -183,6 +185,7 @@ function defaultSettings() {
   return {
     services: [],
     pollSeconds: DEFAULT_POLL_SECONDS,
+    pageSize: LIST_PAGE_SIZE,
     density: "comfortable",
     showCalendar: true,
     showQueue: true
@@ -194,6 +197,14 @@ function clampPoll(value) {
   if (!(n > 0)) n = DEFAULT_POLL_SECONDS
   if (n < 5) n = 5
   if (n > 3600) n = 3600
+  return n
+}
+
+function clampPageSize(value) {
+  var n = parseInt(value, 10)
+  if (!(n > 0)) n = LIST_PAGE_SIZE
+  if (n < PAGE_SIZE_MIN) n = PAGE_SIZE_MIN
+  if (n > PAGE_SIZE_MAX) n = PAGE_SIZE_MAX
   return n
 }
 
@@ -234,6 +245,7 @@ function normalizeSettings(raw) {
   uniquifyIds(out)
   base.services = out
   base.pollSeconds = clampPoll(data.pollSeconds)
+  base.pageSize = clampPageSize(data.pageSize)
   base.density = String(data.density || "") === "compact" ? "compact" : "comfortable"
   base.showCalendar = data.showCalendar !== false
   base.showQueue = data.showQueue !== false
@@ -273,6 +285,7 @@ function settingsPayload(settings) {
   return {
     id: PLUGIN_ID,
     pollSeconds: data.pollSeconds,
+    pageSize: data.pageSize,
     density: data.density,
     showCalendar: data.showCalendar,
     showQueue: data.showQueue,
@@ -511,26 +524,26 @@ function listPage(page) {
   return n > 0 ? n : 1
 }
 
-function listOffset(page) {
-  return (listPage(page) - 1) * LIST_PAGE_SIZE
+function listOffset(page, pageSize) {
+  return (listPage(page) - 1) * clampPageSize(pageSize)
 }
 
 function capList(list, max) {
-  var n = parseInt(max, 10)
-  if (!(n > 0)) n = LIST_PAGE_SIZE
+  var n = clampPageSize(max)
   if (!Array.isArray(list) || list.length <= n) return Array.isArray(list) ? list : []
   return list.slice(0, n)
 }
 
-function listPager(page, count, total) {
+function listPager(page, count, total, pageSize) {
   var p = listPage(page)
+  var size = clampPageSize(pageSize)
   var n = Array.isArray(count) ? count.length : (parseInt(count, 10) || 0)
   var tot = parseInt(total, 10) || 0
-  var start = (p - 1) * LIST_PAGE_SIZE
+  var start = (p - 1) * size
   var from = n > 0 ? start + 1 : 0
   var to = start + n
   var hasPrev = p > 1
-  var hasNext = tot > 0 ? to < tot : n >= LIST_PAGE_SIZE
+  var hasNext = tot > 0 ? to < tot : n >= size
   var label = ""
   if (from) label = tot ? from + "-" + to + " of " + tot : from + "-" + to
   return { page: p, hasPrev: hasPrev, hasNext: hasNext, from: from, to: to, total: tot, label: label }
@@ -540,8 +553,8 @@ function arrStatusUrl(base) {
   return normalizeUrl(base) + "/api/v3/system/status"
 }
 
-function arrQueueUrl(base, page) {
-  return normalizeUrl(base) + "/api/v3/queue?page=" + listPage(page) + "&pageSize=" + LIST_PAGE_SIZE
+function arrQueueUrl(base, page, pageSize) {
+  return normalizeUrl(base) + "/api/v3/queue?page=" + listPage(page) + "&pageSize=" + clampPageSize(pageSize)
 }
 
 function arrTotalRecords(raw) {
@@ -588,7 +601,7 @@ function parseArrStatus(raw) {
   }
 }
 
-function parseArrQueue(raw, kind) {
+function parseArrQueue(raw, kind, pageSize) {
   var data = parseJson(raw, {})
   var records = data && Array.isArray(data.records) ? data.records : (Array.isArray(data) ? data : [])
   var out = []
@@ -611,14 +624,14 @@ function parseArrQueue(raw, kind) {
       posterId: row.series && row.series.id ? String(row.series.id) : (row.movie && row.movie.id ? String(row.movie.id) : "")
     })
   }
-  return capList(out)
+  return capList(out, pageSize)
 }
 
 function episodeCode(season, episode) {
   return "S" + pad2(parseInt(season, 10) || 0) + "E" + pad2(parseInt(episode, 10) || 0)
 }
 
-function parseArrCalendar(raw, kind) {
+function parseArrCalendar(raw, kind, pageSize) {
   var data = parseJson(raw, [])
   var list = Array.isArray(data) ? data : []
   var out = []
@@ -650,7 +663,7 @@ function parseArrCalendar(raw, kind) {
       })
     }
   }
-  return capList(out)
+  return capList(out, pageSize)
 }
 
 function parseArrWanted(raw, kind) {
@@ -696,7 +709,7 @@ function parseSpeedString(value, kbpersec) {
   return n * 1024 * 1024
 }
 
-function parseSabQueue(raw) {
+function parseSabQueue(raw, pageSize) {
   var data = parseJson(raw, {})
   var queue = data && data.queue ? data.queue : {}
   var slots = Array.isArray(queue.slots) ? queue.slots : []
@@ -723,7 +736,7 @@ function parseSabQueue(raw) {
     speed: parseSpeedString(queue.speed, queue.kbpersec),
     timeleft: String(queue.timeleft || ""),
     total: parseInt(queue.noofslots, 10) || items.length,
-    queue: capList(items)
+    queue: capList(items, pageSize)
   }
 }
 
@@ -747,7 +760,7 @@ function parseSabHistory(raw) {
   return out
 }
 
-function parseQbitTorrents(raw) {
+function parseQbitTorrents(raw, pageSize) {
   var data = parseJson(raw, [])
   var list = Array.isArray(data) ? data : []
   var out = []
@@ -767,7 +780,7 @@ function parseQbitTorrents(raw) {
       kind: "qbittorrent"
     })
   }
-  return capList(out)
+  return capList(out, pageSize)
 }
 
 function parseQbitTransfer(raw) {
@@ -791,10 +804,10 @@ function formEncode(obj) {
   return parts.join("&")
 }
 
-function sabBody(apiKey, mode, extra) {
+function sabBody(apiKey, mode, extra, pageSize) {
   var data = { apikey: String(apiKey || ""), mode: String(mode || "queue"), output: "json" }
   if (String(mode || "queue") === "queue") {
-    data.limit = String(LIST_PAGE_SIZE)
+    data.limit = String(clampPageSize(pageSize))
     data.start = "0"
   }
   var more = extra && typeof extra === "object" ? extra : {}
@@ -819,9 +832,9 @@ function qbitLoginUrl(base) {
   return normalizeUrl(base) + "/api/v2/auth/login"
 }
 
-function qbitTorrentsUrl(base, page) {
-  return normalizeUrl(base) + "/api/v2/torrents/info?limit=" + LIST_PAGE_SIZE +
-    "&offset=" + listOffset(page) + "&sort=dlspeed&reverse=true"
+function qbitTorrentsUrl(base, page, pageSize) {
+  return normalizeUrl(base) + "/api/v2/torrents/info?limit=" + clampPageSize(pageSize) +
+    "&offset=" + listOffset(page, pageSize) + "&sort=dlspeed&reverse=true"
 }
 
 function qbitTransferUrl(base) {
@@ -1272,6 +1285,8 @@ if (typeof module !== "undefined" && module.exports) {
     IMAGE_MAX_BYTES: IMAGE_MAX_BYTES,
     SEEN_LIMIT: SEEN_LIMIT,
     LIST_PAGE_SIZE: LIST_PAGE_SIZE,
+    PAGE_SIZE_MIN: PAGE_SIZE_MIN,
+    PAGE_SIZE_MAX: PAGE_SIZE_MAX,
     KINDS: KINDS,
     KIND_DEFAULTS: KIND_DEFAULTS,
     curlBounds: curlBounds,
@@ -1294,6 +1309,7 @@ if (typeof module !== "undefined" && module.exports) {
     defaultSettings: defaultSettings,
     normalizeService: normalizeService,
     normalizeSettings: normalizeSettings,
+    clampPageSize: clampPageSize,
     pluginSettings: pluginSettings,
     settingsPayload: settingsPayload,
     newServiceId: newServiceId,

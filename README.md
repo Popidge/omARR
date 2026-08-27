@@ -46,7 +46,7 @@ First open is an empty radar. Add a service by kind, or **Scan local ports** to 
 | SABnzbd | API key | Queue, history, speed | Pause / resume queue or a job |
 | qBittorrent | username + password | Torrents, transfer speed | Pause / resume torrent or all |
 
-Layout (names, URLs, groups, order, notification flags, poll interval, density) is stored in `~/.config/omarchy/shell.json`. API keys and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
+Layout (names, URLs, groups, order, notification flags, poll interval, queue page size, density) is stored in `~/.config/omarchy/shell.json`. API keys and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
 
 ## Icons
 
