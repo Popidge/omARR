@@ -276,6 +276,8 @@ checkEqual(Model.calendarDayLabel("2026-08-26", wed), "Today", "label today")
 checkEqual(Model.calendarDayLabel("2026-08-27", wed), "Tomorrow", "label tomorrow")
 checkEqual(Model.calendarDayLabel("2026-08-28", wed), "Friday", "label friday")
 checkEqual(Model.calendarDayLabel("2026-09-02", wed), "Next Wednesday", "label next week")
+checkEqual(Model.calendarDateMeta("2026-08-26"), "26-08-26", "date meta")
+checkEqual(Model.calendarDateMeta("2026-08-26T18:00:00Z"), "26-08-26", "date meta iso")
 var groupedCal = Model.groupedCalendar([
   { id: "1", title: "B", airDate: "2026-08-27" },
   { id: "2", title: "A", airDate: "2026-08-26" },
@@ -283,6 +285,8 @@ var groupedCal = Model.groupedCalendar([
 ], wed)
 checkEqual(groupedCal.length, 2, "grouped two days")
 checkEqual(groupedCal[0].day, "Today", "grouped today first")
+checkEqual(groupedCal[0].heading, "Today · 26-08-26", "grouped heading has date")
+checkEqual(groupedCal[1].heading, "Tomorrow · 27-08-26", "grouped tomorrow heading")
 checkEqual(groupedCal[0].items.length, 2, "grouped two on today")
 checkEqual(groupedCal[1].day, "Tomorrow", "grouped tomorrow")
 

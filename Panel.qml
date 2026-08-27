@@ -511,9 +511,9 @@ Panel {
                     spacing: Style.space(2)
 
                     Text {
-                      visible: parent.modelData.day !== ""
+                      visible: parent.modelData.heading !== ""
                       width: parent.width
-                      text: parent.modelData.day
+                      text: parent.modelData.heading
                       color: root.dim
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -758,9 +758,9 @@ Panel {
                     spacing: Style.space(2)
 
                     Text {
-                      visible: parent.modelData.day !== ""
+                      visible: parent.modelData.heading !== ""
                       width: parent.width
-                      text: parent.modelData.day
+                      text: parent.modelData.heading
                       color: root.dim
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption

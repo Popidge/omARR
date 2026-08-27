@@ -532,6 +532,13 @@ function dateFromDayKey(key) {
   return isNaN(d.getTime()) ? null : d
 }
 
+function calendarDateMeta(value) {
+  var day = calendarDayKey(value)
+  if (!day) return ""
+  var parts = day.split("-")
+  return parts[2] + "-" + parts[1] + "-" + parts[0].slice(2)
+}
+
 function calendarDayLabel(key, now) {
   var day = calendarDayKey(key)
   if (!day) return ""
@@ -563,7 +570,15 @@ function groupedCalendar(events, now) {
     var key = calendarDayKey(ev.airDate)
     var bucket = key || "_"
     if (!map[bucket]) {
-      map[bucket] = { day: key ? calendarDayLabel(key, now) : "", date: key, items: [] }
+      var label = key ? calendarDayLabel(key, now) : ""
+      var meta = key ? calendarDateMeta(key) : ""
+      map[bucket] = {
+        day: label,
+        date: key,
+        meta: meta,
+        heading: label && meta ? label + " · " + meta : (label || meta),
+        items: []
+      }
       groups.push(map[bucket])
     }
     map[bucket].items.push(ev)
@@ -1389,6 +1404,7 @@ if (typeof module !== "undefined" && module.exports) {
     groupedServices: groupedServices,
     calendarDayKey: calendarDayKey,
     calendarDayLabel: calendarDayLabel,
+    calendarDateMeta: calendarDateMeta,
     groupedCalendar: groupedCalendar,
     applyServiceMeta: applyServiceMeta,
     parseCredentials: parseCredentials,
