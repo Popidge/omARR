@@ -15,3 +15,5 @@ The colorful SVG files in this directory are bundled locally so omARR never
 fetches icons from a third-party host at runtime. Each icon's page is:
 
     https://dashboardicons.com/icons/<slug>
+
+`omarr.svg` is original to this plugin (MIT), not a Dashboard Icon.

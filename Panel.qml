@@ -280,7 +280,7 @@ Panel {
                 anchors.leftMargin: Style.space(6)
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Style.space(2)
+                spacing: -Style.space(1)
 
                 Text {
                   width: parent.width

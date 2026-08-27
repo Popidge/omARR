@@ -1,4 +1,6 @@
 import QtQuick
+import QtQuick.Effects
+import QtQuick.Window
 import qs.Commons
 
 Item {
@@ -14,48 +16,27 @@ Item {
   implicitHeight: iconSize
 
   readonly property real s: Math.max(8, iconSize)
+  readonly property real dpr: Screen.devicePixelRatio || 1
 
-  Rectangle {
-    width: root.s * 0.88
-    height: width
-    radius: width / 2
-    color: "transparent"
-    border.color: root.color
-    border.width: Math.max(1, root.s * 0.08)
+  Image {
+    id: mark
     anchors.centerIn: parent
-    opacity: 0.95
+    width: root.s
+    height: root.s
+    source: Qt.resolvedUrl("icons/omarr.svg")
+    sourceSize.width: Math.round(root.s * root.dpr)
+    sourceSize.height: Math.round(root.s * root.dpr)
+    fillMode: Image.PreserveAspectFit
+    smooth: false
+    asynchronous: true
+    visible: false
+    layer.enabled: true
   }
 
-  Rectangle {
-    width: root.s * 0.54
-    height: width
-    radius: width / 2
-    color: "transparent"
-    border.color: root.color
-    border.width: Math.max(1, root.s * 0.07)
-    anchors.centerIn: parent
-    opacity: 0.7
-  }
-
-  Rectangle {
-    width: Math.max(1.5, root.s * 0.08)
-    height: root.s * 0.42
-    radius: width / 2
-    color: root.color
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.bottom: parent.verticalCenter
-    transform: Rotation {
-      origin.x: Math.max(0.75, root.s * 0.04)
-      origin.y: root.s * 0.42
-      angle: 38
-    }
-  }
-
-  Rectangle {
-    width: Math.max(2, root.s * 0.16)
-    height: width
-    radius: width / 2
-    color: root.color
-    anchors.centerIn: parent
+  MultiEffect {
+    anchors.fill: mark
+    source: mark
+    colorization: 1
+    colorizationColor: root.color
   }
 }
