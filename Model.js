@@ -565,12 +565,12 @@ function arrTotalRecords(raw) {
 
 function arrCalendarUrl(base, start, end) {
   return normalizeUrl(base) + "/api/v3/calendar?start=" + encodeURIComponent(start) +
-    "&end=" + encodeURIComponent(end) + "&unmonitored=false"
+    "&end=" + encodeURIComponent(end) + "&unmonitored=false&includeSeries=true"
 }
 
 function arrWantedUrl(base, kind) {
-  var path = kindOf(kind) === "radarr" ? "/api/v3/wanted/missing?page=1&pageSize=10" :
-    "/api/v3/wanted/missing?page=1&pageSize=10"
+  var path = "/api/v3/wanted/missing?page=1&pageSize=10"
+  if (kindOf(kind) === "sonarr") path += "&includeSeries=true"
   return normalizeUrl(base) + path
 }
 
@@ -631,6 +631,15 @@ function episodeCode(season, episode) {
   return "S" + pad2(parseInt(season, 10) || 0) + "E" + pad2(parseInt(episode, 10) || 0)
 }
 
+function arrEpisodeShow(row) {
+  var item = row && typeof row === "object" ? row : {}
+  var series = item.series && typeof item.series === "object" ? item.series : {}
+  return {
+    title: String(series.title || item.seriesTitle || ""),
+    id: series.id ? String(series.id) : String(item.seriesId || "")
+  }
+}
+
 function parseArrCalendar(raw, kind, pageSize) {
   var data = parseJson(raw, [])
   var list = Array.isArray(data) ? data : []
@@ -650,15 +659,15 @@ function parseArrCalendar(raw, kind, pageSize) {
         kind: "radarr"
       })
     } else {
-      var series = row.series || {}
+      var show = arrEpisodeShow(row)
       out.push({
         id: String(row.id || ""),
-        title: String(series.title || ""),
+        title: show.title,
         subtitle: episodeCode(row.seasonNumber, row.episodeNumber) + (row.title ? " " + row.title : ""),
         airDate: String(row.airDate || row.airDateUtc || ""),
         hasFile: !!row.hasFile,
         monitored: row.monitored !== false,
-        posterId: series.id ? String(series.id) : "",
+        posterId: show.id,
         kind: "sonarr"
       })
     }
@@ -682,12 +691,12 @@ function parseArrWanted(raw, kind) {
         kind: "radarr"
       })
     } else {
-      var series = row.series || {}
+      var show = arrEpisodeShow(row)
       out.push({
         id: String(row.id || ""),
-        title: String(series.title || ""),
+        title: show.title,
         subtitle: episodeCode(row.seasonNumber, row.episodeNumber) + (row.title ? " " + row.title : ""),
-        posterId: series.id ? String(series.id) : "",
+        posterId: show.id,
         kind: "sonarr"
       })
     }

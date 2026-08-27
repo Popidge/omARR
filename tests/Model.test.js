@@ -214,6 +214,8 @@ var lastPage = Model.listPager(2, 5, 0)
 checkEqual(lastPage.hasNext, false, "short page is last")
 checkEqual(Model.listPager(1, 3, 3).hasNext, false, "exact total no next")
 check(Model.arrCalendarUrl("http://s:8989", "2026-08-26", "2026-09-02").indexOf("start=2026-08-26") !== -1, "cal url")
+check(Model.arrCalendarUrl("http://s:8989", "2026-08-26", "2026-09-02").indexOf("includeSeries=true") !== -1, "cal include series")
+check(Model.arrWantedUrl("http://s:8989", "sonarr").indexOf("includeSeries=true") !== -1, "wanted include series")
 checkEqual(Model.arrPosterUrl("http://s:8989", "sonarr", 12), "http://s:8989/api/v3/mediacover/12/poster-250.jpg", "poster url")
 
 var status = Model.parseArrStatus('{"version":"4.0.1","appName":"Sonarr"}')
@@ -245,6 +247,27 @@ checkEqual(cal[0].title, "Show", "cal series")
 checkEqual(cal[0].subtitle, "S01E02 Next", "cal episode")
 checkEqual(cal[0].posterId, "3", "cal poster")
 
+var calFlat = Model.parseArrCalendar(JSON.stringify([
+  {
+    id: 5,
+    airDate: "2026-08-27",
+    title: "The Episode",
+    seasonNumber: 2,
+    episodeNumber: 3,
+    seriesTitle: "The Show",
+    seriesId: 9
+  }
+]), "sonarr")
+checkEqual(calFlat[0].title, "The Show", "cal seriesTitle fallback")
+checkEqual(calFlat[0].subtitle, "S02E03 The Episode", "cal episode stays subtitle")
+checkEqual(calFlat[0].posterId, "9", "cal seriesId poster")
+
+var calBare = Model.parseArrCalendar(JSON.stringify([
+  { id: 6, title: "Naked Episode", seasonNumber: 1, episodeNumber: 1 }
+]), "sonarr")
+checkEqual(calBare[0].title, "", "cal no series not episode title")
+checkEqual(calBare[0].subtitle.indexOf("Naked Episode") !== -1, true, "cal episode in subtitle")
+
 var movies = Model.parseArrCalendar(JSON.stringify([
   { id: 8, title: "Film", year: 2024, inCinemas: "2026-08-27", hasFile: false, monitored: true }
 ]), "radarr")
@@ -255,6 +278,12 @@ var wanted = Model.parseArrWanted(JSON.stringify({
   records: [{ id: 1, title: "Pilot", seasonNumber: 1, episodeNumber: 1, series: { title: "Show", id: 3 } }]
 }), "sonarr")
 checkEqual(wanted[0].title, "Show", "wanted series")
+
+var wantedFlat = Model.parseArrWanted(JSON.stringify({
+  records: [{ id: 2, title: "Pilot", seasonNumber: 1, episodeNumber: 1, seriesTitle: "Flat Show", seriesId: 8 }]
+}), "sonarr")
+checkEqual(wantedFlat[0].title, "Flat Show", "wanted seriesTitle fallback")
+checkEqual(wantedFlat[0].posterId, "8", "wanted seriesId poster")
 
 var sab = Model.parseSabQueue(JSON.stringify({
   queue: {
