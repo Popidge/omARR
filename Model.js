@@ -678,11 +678,11 @@ function arrHistoryUrl(base, kind, pageSize) {
 }
 
 function arrPosterUrl(base, kind, id) {
-  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/poster-250.jpg"
+  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/poster-500.jpg"
 }
 
 function arrFanartUrl(base, id) {
-  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/fanart-360.jpg"
+  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/fanart.jpg"
 }
 
 function arrCommandUrl(base) {
@@ -1082,18 +1082,22 @@ function plexRecentlyAddedUrl(base, pageSize) {
 function plexArtUrl(base, path) {
   var p = String(path || "")
   if (!p) return ""
+  var url = ""
   if (p.indexOf("http://") === 0 || p.indexOf("https://") === 0) {
     var root = normalizeUrl(base)
-    return p.indexOf(root) === 0 ? p : ""
+    url = p.indexOf(root) === 0 ? p : ""
+  } else {
+    url = normalizeUrl(base) + (p.charAt(0) === "/" ? p : "/" + p)
   }
-  return normalizeUrl(base) + (p.charAt(0) === "/" ? p : "/" + p)
+  if (!url) return ""
+  return url + (url.indexOf("?") === -1 ? "?" : "&") + "width=720&height=405&minSize=1"
 }
 
 function plexCachePath(cacheDir, serviceId, itemId) {
   var safe = function(value) {
     return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
   }
-  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-plex.jpg"
+  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-plex-hd.jpg"
 }
 
 function plexRecords(raw) {
@@ -1672,14 +1676,14 @@ function posterCachePath(cacheDir, serviceId, itemId) {
   var safe = function(value) {
     return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
   }
-  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + ".jpg"
+  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-poster-hd.jpg"
 }
 
 function fanartCachePath(cacheDir, serviceId, itemId) {
   var safe = function(value) {
     return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
   }
-  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-fanart.jpg"
+  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-fanart-hd.jpg"
 }
 
 function splitHttp(text) {

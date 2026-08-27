@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Window
 import qs.Commons
 import "Model.js" as Model
 
@@ -12,6 +13,11 @@ Item {
   property bool compact: false
   property string fontFamily: Style.font.family
 
+  readonly property real dpr: Screen.devicePixelRatio || 1
+  readonly property size layerSize: Qt.size(
+    Math.max(1, Math.round(width * dpr)),
+    Math.max(1, Math.round(height * dpr))
+  )
   readonly property color overlayText: Qt.rgba(1, 1, 1, 0.96)
   readonly property color overlayDim: Qt.rgba(1, 1, 1, 0.78)
   readonly property string ratingLabel: Model.formatRating(item && item.rating, item && item.ratingSource)
@@ -26,6 +32,8 @@ Item {
     color: Qt.rgba(0, 0, 0, 0.5)
     layer.enabled: true
     layer.smooth: true
+    layer.mipmap: true
+    layer.textureSize: root.layerSize
     layer.effect: MultiEffect {
       maskEnabled: true
       maskSource: roundMask
@@ -38,10 +46,12 @@ Item {
       anchors.fill: parent
       visible: root.fanartUrl !== "" && status === Image.Ready
       source: root.fanartUrl
+      sourceSize: root.layerSize
       fillMode: Image.PreserveAspectCrop
       asynchronous: true
       cache: true
       smooth: true
+      mipmap: true
     }
 
     Image {
@@ -49,10 +59,12 @@ Item {
       anchors.fill: parent
       visible: !fanart.visible && root.posterUrl !== "" && status === Image.Ready
       source: root.posterUrl
+      sourceSize: root.layerSize
       fillMode: Image.PreserveAspectCrop
       asynchronous: true
       cache: true
       smooth: true
+      mipmap: true
     }
 
     Rectangle {
@@ -127,6 +139,9 @@ Item {
     radius: card.radius
     color: "#ffffff"
     visible: false
+    antialiasing: true
     layer.enabled: true
+    layer.smooth: true
+    layer.textureSize: root.layerSize
   }
 }

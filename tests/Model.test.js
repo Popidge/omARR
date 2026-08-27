@@ -219,8 +219,8 @@ check(Model.arrWantedUrl("http://s:8989", "sonarr").indexOf("includeSeries=true"
 check(Model.arrHistoryUrl("http://s:8989", "sonarr").indexOf("/api/v3/history?") !== -1, "arr history url")
 check(Model.arrHistoryUrl("http://s:8989", "sonarr").indexOf("includeSeries=true") !== -1, "arr history series")
 check(Model.arrHistoryUrl("http://r:7878", "radarr").indexOf("includeMovie=true") !== -1, "arr history movie")
-checkEqual(Model.arrPosterUrl("http://s:8989", "sonarr", 12), "http://s:8989/api/v3/mediacover/12/poster-250.jpg", "poster url")
-checkEqual(Model.arrFanartUrl("http://s:8989", 12), "http://s:8989/api/v3/mediacover/12/fanart-360.jpg", "fanart url")
+checkEqual(Model.arrPosterUrl("http://s:8989", "sonarr", 12), "http://s:8989/api/v3/mediacover/12/poster-500.jpg", "poster url")
+checkEqual(Model.arrFanartUrl("http://s:8989", 12), "http://s:8989/api/v3/mediacover/12/fanart.jpg", "fanart url")
 checkEqual(Model.formatRating(8.4, "imdb"), "IMDb 8.4", "imdb rating label")
 checkEqual(Model.formatRating(8.5, ""), "8.5", "generic rating")
 checkEqual(Model.formatRating(0, "imdb"), "", "empty rating")
@@ -477,9 +477,9 @@ check(Model.headerPlex("tok").indexOf("Accept: application/json") !== -1, "plex 
 check(Model.headerIsConfig(Model.headerPlex("tok")), "plex headers need curl config")
 check(!Model.headerIsConfig(Model.headerApiKey("k")), "api key is one header")
 check(Model.curlHeaderConfig(Model.headerPlex("tok")).indexOf("header = \"X-Plex-Token: tok\"") !== -1, "curl config token")
-checkEqual(Model.plexArtUrl("http://p:32400", "/library/metadata/1/thumb/2"), "http://p:32400/library/metadata/1/thumb/2", "plex relative art")
+checkEqual(Model.plexArtUrl("http://p:32400", "/library/metadata/1/thumb/2"), "http://p:32400/library/metadata/1/thumb/2?width=720&height=405&minSize=1", "plex relative art")
 checkEqual(Model.plexArtUrl("http://p:32400", "https://plex.tv/photo.jpg"), "", "plex skips remote art")
-checkEqual(Model.plexCachePath("/tmp/omarr", "svc-1", "99"), "/tmp/omarr/svc-1-99-plex.jpg", "plex cache path")
+checkEqual(Model.plexCachePath("/tmp/omarr", "svc-1", "99"), "/tmp/omarr/svc-1-99-plex-hd.jpg", "plex cache path")
 
 var plexIdent = Model.parsePlexIdentity(JSON.stringify({ MediaContainer: { version: "1.41.2", machineIdentifier: "abc" } }))
 checkEqual(plexIdent.version, "1.41.2", "plex version")
@@ -736,8 +736,8 @@ for (var i = 0; i < slugs.length; i++) {
   check(fs.existsSync(path.join(__dirname, "..", "icons", slugs[i] + ".svg")), "svg " + slugs[i])
 }
 
-checkEqual(Model.posterCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12.jpg", "poster path")
-checkEqual(Model.fanartCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12-fanart.jpg", "fanart path")
+checkEqual(Model.posterCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12-poster-hd.jpg", "poster path")
+checkEqual(Model.fanartCachePath("/tmp/omarr", "svc-1", "12"), "/tmp/omarr/svc-1-12-fanart-hd.jpg", "fanart path")
 
 var keep = [{ id: "a", title: "Old", progress: 0.2 }]
 var newer = [{ id: "a", title: "New", progress: 0.8 }]
