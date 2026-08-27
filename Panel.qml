@@ -760,6 +760,45 @@ Panel {
                   }
                 }
 
+                PanelSectionHeader {
+                  visible: root.detailSnap && root.detailSnap.kind === "sabnzbd"
+                    && (root.detailSnap.activity || []).length > 0
+                  text: "HISTORY"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                }
+
+                Repeater {
+                  model: root.detailSnap && root.detailSnap.kind === "sabnzbd"
+                    ? (root.detailSnap.activity || []) : []
+
+                  Column {
+                    required property var modelData
+                    width: parent.width
+                    spacing: Style.space(1)
+
+                    Text {
+                      width: parent.width
+                      text: parent.modelData.title
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+
+                    Text {
+                      width: parent.width
+                      text: parent.modelData.status
+                      color: parent.modelData.status === "failed" ? root.urgent : root.dim
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                    }
+                  }
+                }
+
                 Repeater {
                   model: root.detailSnap && root.detailSnap.calendar
                     ? Model.groupedCalendar(root.detailSnap.calendar) : []

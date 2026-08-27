@@ -590,7 +590,7 @@ Item {
       serviceId: service.id,
       url: Model.sabApiUrl(service.url),
       method: "POST",
-      bodyText: Model.sabBody(auth.apiKey, "history", { limit: "8" })
+      bodyText: Model.sabBody(auth.apiKey, "history", { limit: String(root.pageSize) })
     })
   }
 
