@@ -1132,10 +1132,7 @@ function parsePlexItem(row, asSession) {
     var who = [user, player].filter(Boolean).join(" · ")
     if (who) subtitle = subtitle ? subtitle + " · " + who : who
   }
-  if (progress > 0 && progress < 1) {
-    var pct = formatProgress(progress)
-    subtitle = subtitle ? subtitle + " · " + pct : pct
-  }
+  var watched = (Number(item.viewCount) || 0) > 0 || progress >= 1
   var rated = arrRating({ value: item.audienceRating || item.rating })
   if (item.Rating && Array.isArray(item.Rating)) {
     for (var i = 0; i < item.Rating.length; i++) {
@@ -1155,6 +1152,7 @@ function parsePlexItem(row, asSession) {
     rating: rated.value,
     ratingSource: rated.source,
     progress: progress,
+    watched: watched,
     kind: "plex"
   }
 }
@@ -1340,7 +1338,8 @@ function mergeNow(snapshots, opts) {
           thumbPath: plex.thumbPath || "",
           rating: plex.rating || 0,
           ratingSource: plex.ratingSource || "",
-          progress: plex.progress || 0
+          progress: plex.progress || 0,
+          watched: plex.watched === true
         })
       }
     }

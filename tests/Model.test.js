@@ -527,7 +527,38 @@ var plexDeck = Model.parsePlexLibrary(JSON.stringify({
   }
 }))
 checkEqual(plexDeck[0].progress, 0.25, "plex ondeck progress")
-check(plexDeck[0].subtitle.indexOf("25%") !== -1, "plex ondeck progress text")
+check(plexDeck[0].subtitle.indexOf("%") === -1, "plex ondeck has no percent text")
+check(plexDeck[0].watched !== true, "plex ondeck in progress is not watched")
+
+var plexWatched = Model.parsePlexLibrary(JSON.stringify({
+  MediaContainer: {
+    Metadata: [{
+      ratingKey: "22",
+      type: "movie",
+      title: "Done",
+      year: 2020,
+      viewCount: 1,
+      duration: 1000
+    }]
+  }
+}))
+check(plexWatched[0].watched === true, "plex viewCount is watched")
+checkEqual(plexWatched[0].progress, 0, "plex watched has no leftover progress")
+
+var plexDone = Model.parsePlexLibrary(JSON.stringify({
+  MediaContainer: {
+    Metadata: [{
+      ratingKey: "23",
+      type: "movie",
+      title: "Finished",
+      viewOffset: 400,
+      duration: 400
+    }]
+  }
+}))
+checkEqual(plexDone[0].progress, 1, "plex complete progress")
+check(plexDone[0].watched === true, "plex complete is watched")
+check(plexDone[0].subtitle.indexOf("%") === -1, "plex complete has no percent text")
 
 var plexNow = Model.parsePlexSessions(JSON.stringify({
   MediaContainer: {
