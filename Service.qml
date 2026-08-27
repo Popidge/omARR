@@ -417,6 +417,13 @@ Item {
       }
       return
     }
+    if (req.kind === "arr-history") {
+      if (parsed.status >= 200 && parsed.status < 400) {
+        snap.activity = Model.parseArrHistory(parsed.body, service.kind)
+        root.commitSnapshot(snap, service)
+      }
+      return
+    }
     if (req.kind === "sab-queue") {
       if (parsed.status < 200 || parsed.status >= 400) {
         if (!(req.page > 1)) root.commitHealth(service, snap, parsed.status)
@@ -564,6 +571,7 @@ Item {
     root.enqueue({ kind: "arr-status", serviceId: service.id, url: Model.arrStatusUrl(service.url), headerText: header })
     root.enqueue({ kind: "arr-queue", serviceId: service.id, url: Model.arrQueueUrl(service.url, 1, root.pageSize), headerText: header })
     root.enqueue({ kind: "arr-calendar", serviceId: service.id, url: Model.arrCalendarUrl(service.url, range.start, range.end), headerText: header })
+    root.enqueue({ kind: "arr-history", serviceId: service.id, url: Model.arrHistoryUrl(service.url, service.kind, root.pageSize), headerText: header })
     if (root.panelOpen)
       root.enqueue({ kind: "arr-wanted", serviceId: service.id, url: Model.arrWantedUrl(service.url, service.kind), headerText: header })
   }

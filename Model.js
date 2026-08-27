@@ -668,6 +668,14 @@ function arrWantedUrl(base, kind) {
   return normalizeUrl(base) + path
 }
 
+function arrHistoryUrl(base, kind, pageSize) {
+  var path = "/api/v3/history?page=1&pageSize=" + clampPageSize(pageSize)
+    + "&sortKey=date&sortDirection=descending"
+  if (kindOf(kind) === "sonarr") path += "&includeSeries=true"
+  if (kindOf(kind) === "radarr") path += "&includeMovie=true"
+  return normalizeUrl(base) + path
+}
+
 function arrPosterUrl(base, kind, id) {
   return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/poster-250.jpg"
 }
@@ -704,10 +712,13 @@ function parseArrQueue(raw, kind, pageSize) {
     var size = Number(row.size) || 0
     var left = Number(row.sizeleft) || 0
     var progress = size > 0 ? Math.max(0, Math.min(1, 1 - left / size)) : 0
+    var status = String(row.status || "").toLowerCase()
+    var tracked = String(row.trackedDownloadStatus || "").toLowerCase()
+    if (tracked === "warning" || tracked === "error") status = tracked
     out.push({
       id: String(row.id || ""),
       title: String(row.title || ""),
-      status: String(row.status || "").toLowerCase(),
+      status: status,
       size: size,
       sizeleft: left,
       timeleft: String(row.timeleft || ""),
@@ -802,6 +813,37 @@ function parseArrWanted(raw, kind) {
     }
   }
   return capList(out)
+}
+
+function parseArrHistory(raw, kind) {
+  var data = parseJson(raw, {})
+  var records = data && Array.isArray(data.records) ? data.records : (Array.isArray(data) ? data : [])
+  var out = []
+  var isRadarr = kindOf(kind) === "radarr"
+  for (var i = 0; i < records.length; i++) {
+    var row = records[i] || {}
+    var eventType = String(row.eventType || "")
+    var status = ""
+    if (eventType === "grabbed") status = "grabbed"
+    else if (eventType === "downloadFolderImported") status = "imported"
+    else if (eventType === "downloadFailed") status = "failed"
+    else continue
+    var title = ""
+    if (isRadarr) {
+      var movie = row.movie && typeof row.movie === "object" ? row.movie : {}
+      title = String(movie.title || row.sourceTitle || "")
+    } else {
+      var show = arrEpisodeShow(row)
+      title = show.title || String(row.sourceTitle || "")
+    }
+    out.push({
+      id: String(row.id || ""),
+      title: title,
+      status: status,
+      kind: kindOf(kind)
+    })
+  }
+  return out
 }
 
 function parseSpeedString(value, kbpersec) {
@@ -1034,6 +1076,7 @@ function isActiveDownload(item) {
   if (status === "pausedup" || status === "stalledup" || status === "forcedup") return false
   if (item.progress >= 1 && item.kind === "qbittorrent") return false
   if (status === "queued" || status === "stalleddl") return true
+  if (status === "warning" || status === "error") return true
   return status.indexOf("download") !== -1 || status === "active" || (item.progress > 0 && item.progress < 1)
 }
 
@@ -1073,6 +1116,7 @@ function mergeNow(snapshots, opts) {
           progress: item.progress,
           status: item.status,
           timeleft: item.timeleft,
+          protocol: item.protocol || "",
           speed: item.dlspeed || snap.speed || 0
         })
       }
@@ -1158,6 +1202,27 @@ function formatEta(seconds) {
   return Math.floor(s / 86400) + "d"
 }
 
+function formatTimeLeft(raw) {
+  var text = String(raw || "").trim()
+  if (!text) return ""
+  var match = text.match(/^(\d+):(\d{2}):(\d{2})/)
+  if (!match) return text
+  var sec = (parseInt(match[1], 10) || 0) * 3600 + (parseInt(match[2], 10) || 0) * 60 + (parseInt(match[3], 10) || 0)
+  return formatEta(sec)
+}
+
+function queueLine(item) {
+  var row = item || {}
+  var parts = []
+  var status = String(row.status || "").toLowerCase()
+  if (status) parts.push(status)
+  var protocol = String(row.protocol || "").toLowerCase()
+  if (protocol) parts.push(protocol)
+  var eta = formatTimeLeft(row.timeleft)
+  if (eta) parts.push(eta)
+  return parts.join(" · ")
+}
+
 function formatProgress(value) {
   var n = Number(value) || 0
   return Math.round(n * 100) + "%"
@@ -1213,24 +1278,8 @@ function eventsFromPoll(prev, next, service) {
       body: "Back online"
     })
   }
-  var seenPrev = {}
   var prevQueue = Array.isArray(before.queue) ? before.queue : []
-  for (var i = 0; i < prevQueue.length; i++) seenPrev[String(prevQueue[i].id)] = true
   var nextQueue = Array.isArray(after.queue) ? after.queue : []
-  if (after.kind === "sonarr" || after.kind === "radarr") {
-    for (var q = 0; q < nextQueue.length; q++) {
-      var item = nextQueue[q]
-      if (!item.id || seenPrev[item.id]) continue
-      events.push({
-        id: "grab-" + after.id + "-" + item.id,
-        type: "grabbed",
-        serviceId: after.id,
-        serviceName: after.name,
-        title: after.name,
-        body: item.title
-      })
-    }
-  }
   var prevAct = {}
   var beforeAct = Array.isArray(before.activity) ? before.activity : []
   for (var a = 0; a < beforeAct.length; a++) prevAct[String(beforeAct[a].id)] = true
@@ -1242,6 +1291,24 @@ function eventsFromPoll(prev, next, service) {
       events.push({
         id: "done-" + after.id + "-" + act.id,
         type: "download-finished",
+        serviceId: after.id,
+        serviceName: after.name,
+        title: after.name,
+        body: act.title
+      })
+    } else if (act.status === "imported") {
+      events.push({
+        id: "import-" + after.id + "-" + act.id,
+        type: "import",
+        serviceId: after.id,
+        serviceName: after.name,
+        title: after.name,
+        body: act.title
+      })
+    } else if (act.status === "grabbed") {
+      events.push({
+        id: "grab-" + after.id + "-" + act.id,
+        type: "grabbed",
         serviceId: after.id,
         serviceName: after.name,
         title: after.name,
@@ -1300,6 +1367,7 @@ function toastTitle(event) {
   if (row.type === "service-down") return row.serviceName + " is down"
   if (row.type === "service-up") return row.serviceName + " is back"
   if (row.type === "grabbed") return row.serviceName + " grabbed"
+  if (row.type === "import") return row.serviceName + " imported"
   if (row.type === "download-finished") return row.serviceName + " finished"
   if (row.type === "download-failed") return row.serviceName + " failed"
   return row.serviceName || "omARR"
@@ -1314,6 +1382,7 @@ function toastGlyph(event) {
   if (type === "service-down") return "󰀦"
   if (type === "service-up") return "󰗠"
   if (type === "grabbed") return "󰑓"
+  if (type === "import") return "󰋚"
   if (type === "download-failed") return "󰅙"
   return "󰕙"
 }
@@ -1455,12 +1524,14 @@ if (typeof module !== "undefined" && module.exports) {
     arrTotalRecords: arrTotalRecords,
     arrCalendarUrl: arrCalendarUrl,
     arrWantedUrl: arrWantedUrl,
+    arrHistoryUrl: arrHistoryUrl,
     arrPosterUrl: arrPosterUrl,
     arrCommandUrl: arrCommandUrl,
     parseArrStatus: parseArrStatus,
     parseArrQueue: parseArrQueue,
     parseArrCalendar: parseArrCalendar,
     parseArrWanted: parseArrWanted,
+    parseArrHistory: parseArrHistory,
     parseSabQueue: parseSabQueue,
     parseSabHistory: parseSabHistory,
     parseQbitTorrents: parseQbitTorrents,
@@ -1489,6 +1560,8 @@ if (typeof module !== "undefined" && module.exports) {
     formatSpeed: formatSpeed,
     formatBytes: formatBytes,
     formatEta: formatEta,
+    formatTimeLeft: formatTimeLeft,
+    queueLine: queueLine,
     formatProgress: formatProgress,
     barBadge: barBadge,
     barStatusText: barStatusText,

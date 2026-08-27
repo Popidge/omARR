@@ -32,7 +32,7 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 | `p` / `r` | Pause / resume all download clients |
 | Escape | Close |
 
-Toasts for grabs, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
+Toasts for grabs, imports, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
 
 ## Settings
 
@@ -41,8 +41,8 @@ First open is an empty radar. Add a service by kind, or **Scan local ports** to 
 | Kind | Auth | Live data | Controls |
 | --- | --- | --- | --- |
 | Generic | none | Up / down | Open in browser |
-| Sonarr | API key | Queue, 7-day calendar, missing | Open in browser |
-| Radarr | API key | Queue, calendar, missing | Open in browser |
+| Sonarr | API key | Queue, history, 7-day calendar, missing | Open in browser |
+| Radarr | API key | Queue, history, calendar, missing | Open in browser |
 | SABnzbd | API key | Queue, history, speed | Pause / resume queue or a job |
 | qBittorrent | username + password | Torrents, transfer speed | Pause / resume torrent or all |
 

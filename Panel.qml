@@ -461,8 +461,8 @@ Panel {
                     Text {
                       width: parent.width
                       text: parent.modelData.serviceName + " · " + Model.formatProgress(parent.modelData.progress)
-                        + (parent.modelData.timeleft ? " · " + parent.modelData.timeleft : "")
-                      color: root.dim
+                        + (Model.queueLine(parent.modelData) ? " · " + Model.queueLine(parent.modelData) : "")
+                      color: parent.modelData.status === "warning" || parent.modelData.status === "error" ? root.urgent : root.dim
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
                       elide: Text.ElideRight
@@ -669,6 +669,18 @@ Panel {
                           width: parent.width
                           text: qRow.modelData.title
                           color: root.contentForeground
+                          font.family: root.contentFontFamily
+                          font.pixelSize: Style.font.caption
+                          elide: Text.ElideRight
+                          textFormat: Text.PlainText
+                        }
+
+                        Text {
+                          width: parent.width
+                          visible: Model.queueLine(qRow.modelData) !== ""
+                          height: visible ? implicitHeight : 0
+                          text: Model.queueLine(qRow.modelData)
+                          color: qRow.modelData.status === "warning" || qRow.modelData.status === "error" ? root.urgent : root.dim
                           font.family: root.contentFontFamily
                           font.pixelSize: Style.font.caption
                           elide: Text.ElideRight

@@ -216,6 +216,9 @@ checkEqual(Model.listPager(1, 3, 3).hasNext, false, "exact total no next")
 check(Model.arrCalendarUrl("http://s:8989", "2026-08-26", "2026-09-02").indexOf("start=2026-08-26") !== -1, "cal url")
 check(Model.arrCalendarUrl("http://s:8989", "2026-08-26", "2026-09-02").indexOf("includeSeries=true") !== -1, "cal include series")
 check(Model.arrWantedUrl("http://s:8989", "sonarr").indexOf("includeSeries=true") !== -1, "wanted include series")
+check(Model.arrHistoryUrl("http://s:8989", "sonarr").indexOf("/api/v3/history?") !== -1, "arr history url")
+check(Model.arrHistoryUrl("http://s:8989", "sonarr").indexOf("includeSeries=true") !== -1, "arr history series")
+check(Model.arrHistoryUrl("http://r:7878", "radarr").indexOf("includeMovie=true") !== -1, "arr history movie")
 checkEqual(Model.arrPosterUrl("http://s:8989", "sonarr", 12), "http://s:8989/api/v3/mediacover/12/poster-250.jpg", "poster url")
 
 var status = Model.parseArrStatus('{"version":"4.0.1","appName":"Sonarr"}')
@@ -230,6 +233,19 @@ var queue = Model.parseArrQueue(fixtureQueue, "sonarr")
 checkEqual(queue.length, 1, "arr queue len")
 checkEqual(queue[0].progress, 0.75, "arr progress")
 checkEqual(queue[0].title, "Show.S01E01", "arr queue title")
+checkEqual(queue[0].protocol, "torrent", "arr queue protocol")
+checkEqual(queue[0].timeleft, "00:10:00", "arr queue eta")
+checkEqual(queue[0].status, "downloading", "arr queue status")
+var warned = Model.parseArrQueue(JSON.stringify({
+  records: [{ id: 2, title: "X", status: "downloading", trackedDownloadStatus: "warning", protocol: "usenet", timeleft: "00:05:00", size: 10, sizeleft: 5 }]
+}), "sonarr")
+checkEqual(warned[0].status, "warning", "arr queue warning status")
+check(Model.isActiveDownload(warned[0]), "warning still downloading")
+checkEqual(Model.queueLine(warned[0]), "warning · usenet · 5m", "queue line warning")
+checkEqual(Model.queueLine(queue[0]), "downloading · torrent · 10m", "queue line eta")
+checkEqual(Model.formatTimeLeft("00:10:00"), "10m", "format timeleft")
+checkEqual(Model.formatTimeLeft("01:05:00"), "1h 5m", "format timeleft hours")
+checkEqual(Model.formatTimeLeft("00:00:00"), "", "format timeleft zero")
 
 var cal = Model.parseArrCalendar(JSON.stringify([
   {
@@ -329,6 +345,26 @@ var wantedFlat = Model.parseArrWanted(JSON.stringify({
 checkEqual(wantedFlat[0].title, "Flat Show", "wanted seriesTitle fallback")
 checkEqual(wantedFlat[0].posterId, "8", "wanted seriesId poster")
 
+var arrHist = Model.parseArrHistory(JSON.stringify({
+  records: [
+    { id: 11, eventType: "grabbed", sourceTitle: "Show.S01E01", series: { title: "Show" }, episode: { seasonNumber: 1, episodeNumber: 1, title: "Pilot" } },
+    { id: 12, eventType: "downloadFolderImported", sourceTitle: "Show.S01E01", series: { title: "Show" }, episode: { seasonNumber: 1, episodeNumber: 1, title: "Pilot" } },
+    { id: 13, eventType: "downloadFailed", sourceTitle: "Show.S01E02", series: { title: "Show" } },
+    { id: 14, eventType: "rssSync" }
+  ]
+}), "sonarr")
+checkEqual(arrHist.length, 3, "arr history skips rss")
+checkEqual(arrHist[0].status, "grabbed", "arr hist grab")
+checkEqual(arrHist[1].status, "imported", "arr hist import")
+checkEqual(arrHist[2].status, "failed", "arr hist fail")
+checkEqual(arrHist[0].title, "Show", "arr hist series title")
+
+var radHist = Model.parseArrHistory(JSON.stringify({
+  records: [{ id: 21, eventType: "downloadFolderImported", sourceTitle: "Film.mkv", movie: { title: "Film" } }]
+}), "radarr")
+checkEqual(radHist[0].title, "Film", "radarr hist movie")
+checkEqual(radHist[0].status, "imported", "radarr hist import")
+
 var sab = Model.parseSabQueue(JSON.stringify({
   queue: {
     paused: false,
@@ -412,6 +448,7 @@ check(Model.isHealthKind("qbit-login"), "qbit login is health")
 check(!Model.isHealthKind("arr-calendar"), "calendar is not health")
 check(!Model.isHealthKind("arr-queue"), "queue is not health")
 check(!Model.isHealthKind("arr-wanted"), "wanted is not health")
+check(!Model.isHealthKind("arr-history"), "history is not health")
 check(!Model.isHealthKind("sab-history"), "sab history is not health")
 check(!Model.isHealthKind("poster"), "poster is not health")
 
@@ -445,6 +482,7 @@ sabSnap.queue = sab.queue
 sabSnap.speed = sab.speed
 var now = Model.mergeNow([sonarrSnap, radarrSnap, sabSnap], { showCalendar: true, showQueue: true })
 check(now.downloads.length >= 2, "merged downloads")
+checkEqual(now.downloads[0].protocol, "torrent", "merged protocol")
 check(now.calendar.length >= 1, "merged calendar")
 check(now.warnings.length === 1, "warning for down")
 check(now.downloadingCount >= 1, "download count")
@@ -460,13 +498,19 @@ check(Model.barStatusText([sonarrSnap, radarrSnap]).indexOf("Radarr") !== -1, "b
 
 var prev = Model.emptySnapshot({ id: "s", kind: "sonarr", name: "Sonarr", url: "http://s", group: "Media" })
 prev.health = "up"
-prev.queue = []
+prev.activity = []
 var next = Model.emptySnapshot({ id: "s", kind: "sonarr", name: "Sonarr", url: "http://s", group: "Media" })
 next.health = "up"
-next.queue = queue
+next.activity = arrHist
 var svc = { id: "s", kind: "sonarr", notifyGrab: true, notifyHealth: true, notifyDownload: true, notifyImport: true }
 var events = Model.eventsFromPoll(prev, next, svc)
 check(events.some(function(e) { return e.type === "grabbed" }), "grabbed event")
+check(events.some(function(e) { return e.type === "import" }), "import event")
+check(events.some(function(e) { return e.type === "download-failed" }), "arr failed event")
+var queueOnly = Model.emptySnapshot({ id: "s", kind: "sonarr", name: "Sonarr" })
+queueOnly.health = "up"
+queueOnly.queue = queue
+check(!Model.eventsFromPoll(prev, queueOnly, svc).some(function(e) { return e.type === "grabbed" }), "queue does not fake grab")
 
 var downPrev = Model.emptySnapshot({ id: "s", kind: "sonarr", name: "Sonarr", url: "http://s", group: "Media" })
 downPrev.health = "up"
@@ -482,6 +526,10 @@ var grab = events.filter(function(e) { return e.type === "grabbed" })[0]
 check(Model.shouldNotify(grab, svc, []) === true, "notify new grab")
 check(Model.shouldNotify(grab, svc, [grab.id]) === false, "skip seen")
 check(Model.shouldNotify(grab, { notifyGrab: false }, []) === false, "flag off")
+var imported = events.filter(function(e) { return e.type === "import" })[0]
+check(Model.shouldNotify(imported, svc, []) === true, "notify import")
+check(Model.shouldNotify(imported, { notifyImport: false }, []) === false, "import flag off")
+check(Model.toastTitle(imported).indexOf("imported") !== -1, "import toast title")
 check(Model.toastTitle(grab).length > 0, "toast title")
 check(Model.toastBody(grab).length > 0, "toast body")
 check(Model.toastGlyph(grab).length > 0, "toast glyph")

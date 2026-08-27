@@ -23,6 +23,7 @@ Column {
   property string editingId: ""
   property string formKind: "generic"
   property bool formNotifyGrab: true
+  property bool formNotifyImport: true
   property bool formNotifyDownload: true
   property bool formNotifyHealth: true
 
@@ -45,6 +46,7 @@ Column {
     userField.text = ""
     passField.text = ""
     formNotifyGrab = true
+    formNotifyImport = true
     formNotifyDownload = true
     formNotifyHealth = true
     editingId = ""
@@ -76,6 +78,7 @@ Column {
     urlField.text = row.url
     groupField.text = row.group
     formNotifyGrab = row.notifyGrab !== false
+    formNotifyImport = row.notifyImport !== false
     formNotifyDownload = row.notifyDownload !== false
     formNotifyHealth = row.notifyHealth !== false
     var cred = root.service ? root.service.cred(row.id) : { apiKey: "", username: "", password: "" }
@@ -92,7 +95,7 @@ Column {
       url: urlField.text,
       group: Model.normalizeGroup(groupField.text, ""),
       notifyGrab: formNotifyGrab,
-      notifyImport: formNotifyGrab,
+      notifyImport: formNotifyImport,
       notifyDownload: formNotifyDownload,
       notifyHealth: formNotifyHealth
     }
@@ -538,9 +541,31 @@ Column {
 
     Toggle {
       width: parent.width
+      visible: root.formKind === "sonarr" || root.formKind === "radarr"
+      height: visible ? implicitHeight : 0
+      label: "Notify on import"
+      checked: root.formNotifyImport
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onClicked: root.formNotifyImport = !root.formNotifyImport
+    }
+
+    Toggle {
+      width: parent.width
       visible: root.formKind === "sabnzbd" || root.formKind === "qbittorrent"
       height: visible ? implicitHeight : 0
       label: "Notify when downloads finish"
+      checked: root.formNotifyDownload
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onClicked: root.formNotifyDownload = !root.formNotifyDownload
+    }
+
+    Toggle {
+      width: parent.width
+      visible: root.formKind === "sonarr" || root.formKind === "radarr"
+      height: visible ? implicitHeight : 0
+      label: "Notify on download fail"
       checked: root.formNotifyDownload
       foreground: root.foreground
       fontFamily: root.fontFamily
