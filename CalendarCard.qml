@@ -29,15 +29,24 @@ Item {
   }
   readonly property bool showProgress: root.progress > 0 && root.progress < 1
   readonly property bool watched: root.item && root.item.watched === true
+  readonly property bool hovered: hoverArea.containsMouse
 
   width: parent ? parent.width : implicitWidth
   height: Math.round(width * 9 / 16)
+
+  MouseArea {
+    id: hoverArea
+    anchors.fill: parent
+    hoverEnabled: true
+    acceptedButtons: Qt.NoButton
+  }
 
   Rectangle {
     id: card
     anchors.fill: parent
     radius: Style.space(8)
     color: Qt.rgba(0, 0, 0, 0.5)
+    opacity: root.hovered ? 1 : 0.7
     layer.enabled: true
     layer.smooth: true
     layer.mipmap: true
@@ -47,6 +56,10 @@ Item {
       maskSource: roundMask
       maskThresholdMin: 0.5
       maskSpreadAtMin: 0.3
+    }
+
+    Behavior on opacity {
+      NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
     }
 
     Image {
@@ -192,5 +205,19 @@ Item {
     layer.enabled: true
     layer.smooth: true
     layer.textureSize: root.layerSize
+  }
+
+  Rectangle {
+    anchors.fill: parent
+    radius: card.radius
+    color: "transparent"
+    border.width: Math.max(1, Style.hoverBorderWidth)
+    border.color: Color.accent
+    opacity: root.hovered ? 1 : 0
+    z: 2
+
+    Behavior on opacity {
+      NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+    }
   }
 }
