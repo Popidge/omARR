@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 import "Model.js" as Model
 
@@ -23,11 +24,16 @@ Item {
   Rectangle {
     id: card
     anchors.fill: parent
-    radius: Style.space(4)
+    radius: Style.space(8)
     color: Qt.rgba(0, 0, 0, 0.5)
-    clip: true
     layer.enabled: true
     layer.smooth: true
+    layer.effect: MultiEffect {
+      maskEnabled: true
+      maskSource: roundMask
+      maskThresholdMin: 0.5
+      maskSpreadAtMin: 0.3
+    }
 
     Image {
       id: fanart
@@ -114,5 +120,15 @@ Item {
         textFormat: Text.PlainText
       }
     }
+  }
+
+  Rectangle {
+    id: roundMask
+    width: card.width
+    height: card.height
+    radius: card.radius
+    color: "#ffffff"
+    visible: false
+    layer.enabled: true
   }
 }
