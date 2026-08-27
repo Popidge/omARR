@@ -15,6 +15,7 @@ Panel {
   property bool showSettings: false
   property int selectedIndex: 0
   property string detailId: ""
+  property string homeTab: "ondeck"
   property bool enterConsumed: false
 
   readonly property var barIdentity: hostWidget || root
@@ -25,6 +26,22 @@ Panel {
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
   readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0 })
   readonly property var calendarGroups: Model.groupedCalendar(nowFeed.calendar || [])
+  readonly property var homeTabModel: {
+    var tabs = [
+      { id: "ondeck", label: "ON DECK" },
+      { id: "recent", label: "RECENTLY ADDED" }
+    ]
+    if (root.service && root.service.showCalendar)
+      tabs.push({ id: "calendar", label: "CALENDAR" })
+    return tabs
+  }
+  readonly property string shownHomeTab: {
+    var tabs = root.homeTabModel
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].id === root.homeTab) return root.homeTab
+    }
+    return tabs.length ? tabs[0].id : "ondeck"
+  }
   readonly property bool compact: service && service.density === "compact"
   readonly property int rowPad: compact ? Style.space(4) : Style.space(8)
   readonly property int fleetWidth: Style.space(152)
@@ -55,6 +72,8 @@ Panel {
     if (root.service) root.service.clearDetailQueue()
     if (contentFlick) contentFlick.contentY = 0
   }
+
+  onHomeTabChanged: if (contentFlick) contentFlick.contentY = 0
 
   function open() {
     if (root.service) {
@@ -557,8 +576,6 @@ Panel {
                 Text {
                   visible: root.service && root.service.showQueue && (!root.nowFeed.downloads || root.nowFeed.downloads.length === 0)
                     && !(root.nowFeed.sessions || []).length
-                    && !(root.nowFeed.onDeck || []).length
-                    && !(root.nowFeed.recent || []).length
                   width: parent.width
                   text: "Queue is quiet."
                   color: root.dim
@@ -620,15 +637,49 @@ Panel {
                   }
                 }
 
-                PanelSectionHeader {
-                  visible: (root.nowFeed.onDeck || []).length > 0
-                  text: "ON DECK"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
+                Flow {
+                  width: parent.width
+                  spacing: Style.space(12)
+
+                  Repeater {
+                    model: root.homeTabModel
+
+                    Item {
+                      id: homeTabChip
+                      required property var modelData
+                      width: homeTabLabel.implicitWidth
+                      height: homeTabLabel.implicitHeight + Style.space(6)
+
+                      Text {
+                        id: homeTabLabel
+                        text: homeTabChip.modelData.label
+                        color: root.shownHomeTab === homeTabChip.modelData.id ? root.contentForeground : root.dim
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                        font.bold: true
+                        textFormat: Text.PlainText
+                      }
+
+                      Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        visible: root.shownHomeTab === homeTabChip.modelData.id
+                        color: root.contentForeground
+                      }
+
+                      MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.homeTab = homeTabChip.modelData.id
+                      }
+                    }
+                  }
                 }
 
                 Repeater {
-                  model: root.nowFeed.onDeck || []
+                  model: root.shownHomeTab === "ondeck" ? (root.nowFeed.onDeck || []) : []
 
                   CalendarCard {
                     required property var modelData
@@ -640,15 +691,8 @@ Panel {
                   }
                 }
 
-                PanelSectionHeader {
-                  visible: (root.nowFeed.recent || []).length > 0
-                  text: "RECENTLY ADDED"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                }
-
                 Repeater {
-                  model: root.nowFeed.recent || []
+                  model: root.shownHomeTab === "recent" ? (root.nowFeed.recent || []) : []
 
                   CalendarCard {
                     required property var modelData
@@ -660,15 +704,8 @@ Panel {
                   }
                 }
 
-                PanelSectionHeader {
-                  visible: root.service && root.service.showCalendar && (root.nowFeed.calendar || []).length > 0
-                  text: "CALENDAR"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                }
-
                 Repeater {
-                  model: root.service && root.service.showCalendar ? root.calendarGroups : []
+                  model: root.shownHomeTab === "calendar" ? root.calendarGroups : []
 
                   Column {
                     required property var modelData
@@ -699,6 +736,20 @@ Panel {
                       }
                     }
                   }
+                }
+
+                Text {
+                  visible: (root.shownHomeTab === "ondeck" && !(root.nowFeed.onDeck || []).length)
+                    || (root.shownHomeTab === "recent" && !(root.nowFeed.recent || []).length)
+                    || (root.shownHomeTab === "calendar" && !(root.nowFeed.calendar || []).length)
+                  width: parent.width
+                  text: root.shownHomeTab === "recent" ? "Nothing recently added."
+                    : root.shownHomeTab === "calendar" ? "Calendar is empty."
+                    : "Nothing on deck."
+                  color: root.dim
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                  font.italic: true
                 }
               }
 
