@@ -248,24 +248,62 @@ Panel {
         anchors.fill: parent
         spacing: root.rowPad
 
-        Item {
+        Column {
           id: headerBar
           width: parent.width
-          height: Math.max(hero.implicitHeight, headerActions.implicitHeight)
+          spacing: Style.space(6)
 
-            PanelHero {
+          Item {
+            width: parent.width
+            height: Math.max(hero.implicitHeight, headerActions.implicitHeight)
+
+            Item {
               id: hero
               anchors.left: parent.left
               anchors.right: headerActions.left
               anchors.rightMargin: Style.space(8)
-              title: "omARR"
-              meta: root.service ? root.service.statusText : ""
-              foreground: root.contentForeground
-              fontFamily: root.contentFontFamily
-              iconComponent: Component {
-                OmarrIcon {
-                  iconSize: Style.font.display
+              anchors.verticalCenter: parent.verticalCenter
+              implicitHeight: Math.max(headerIcon.implicitHeight, heroLabels.implicitHeight)
+              height: implicitHeight
+
+              OmarrIcon {
+                id: headerIcon
+                iconSize: Style.font.display
+                color: root.contentForeground
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
+              Column {
+                id: heroLabels
+                anchors.left: headerIcon.right
+                anchors.leftMargin: Style.space(6)
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Style.space(2)
+
+                Text {
+                  width: parent.width
+                  text: "omARR"
                   color: root.contentForeground
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.title
+                  font.bold: true
+                  elide: Text.ElideRight
+                  textFormat: Text.PlainText
+                }
+
+                Text {
+                  width: parent.width
+                  text: root.service ? String(root.service.statusText || "").toUpperCase() : ""
+                  visible: text !== ""
+                  color: root.dim
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                  font.letterSpacing: 1.2
+                  elide: Text.ElideRight
+                  textFormat: Text.PlainText
                 }
               }
             }
@@ -303,6 +341,9 @@ Panel {
               }
             }
           }
+
+          PanelSeparator { foreground: root.contentForeground }
+        }
 
           Item {
             id: body
