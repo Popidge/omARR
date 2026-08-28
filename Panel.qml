@@ -237,8 +237,6 @@ Panel {
       onReturnRequested: root.openSelected()
       onTextKey: function(t) {
         if (t === "s" || t === "S") root.showSettings = !root.showSettings
-        else if (t === "p" || t === "P") { if (root.service) root.service.pauseAll() }
-        else if (t === "r" || t === "R") { if (root.service) root.service.resumeAll() }
         else if (t === "o" || t === "O") root.openSelected()
       }
 

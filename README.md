@@ -29,7 +29,6 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 | Enter | Open the selected service in the browser |
 | Space | Open that service’s detail, or return to Overview |
 | `s` | Settings |
-| `p` / `r` | Pause / resume all download clients |
 | Escape | Close |
 
 Toasts for grabs, imports, Plex library adds, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
@@ -43,9 +42,9 @@ First open is an empty overview. Add a service by kind, or **Scan local ports** 
 | Generic | none | Up / down | Open in browser |
 | Sonarr | API key | Queue, history, 7-day calendar, missing | Open in browser |
 | Radarr | API key | Queue, history, calendar, missing | Open in browser |
-| SABnzbd | API key | Queue, history, speed | Pause / resume queue or a job |
+| SABnzbd | API key | Queue, history, speed | Pause / resume a job |
 | Plex | token | Now playing, on deck, recently added | Open in browser |
-| qBittorrent | username + password | Torrents, transfer speed | Pause / resume torrent or all |
+| qBittorrent | username + password | Torrents, transfer speed | Pause / resume a torrent |
 
 Overview shows a service’s queue or *arr calendar only when that service has the matching toggle on. SABnzbd and qBittorrent queues default on; Sonarr and Radarr queues default off.
 

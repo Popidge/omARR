@@ -767,10 +767,6 @@ checkEqual(Model.defaultUrlForKind("plex"), "http://127.0.0.1:32400", "default p
 checkEqual(Model.kindLabel("plex"), "Plex", "plex label")
 checkEqual(Model.iconSlug({ kind: "plex", name: "Living Room" }), "plex", "plex kind icon")
 
-var actions = Model.pauseAllActions([sabSnap, sonarrSnap])
-check(actions.some(function(a) { return a.kind === "sabnzbd" }), "pause sab")
-check(!actions.some(function(a) { return a.kind === "sonarr" }), "arr not a downloader pause")
-
 checkEqual(Model.formatSpeed(1536), "1.5 KB/s", "speed")
 checkEqual(Model.formatBytes(1048576), "1.0 MB", "bytes")
 check(Model.formatEta(90).indexOf("m") !== -1 || Model.formatEta(90).indexOf("s") !== -1, "eta")

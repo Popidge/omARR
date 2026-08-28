@@ -800,16 +800,6 @@ Item {
     root.enqueue(req)
   }
 
-  function pauseAll() {
-    var actions = Model.pauseAllActions(root.snapshots)
-    for (var i = 0; i < actions.length; i++) root.runControl(actions[i].serviceId, actions[i].action)
-  }
-
-  function resumeAll() {
-    var actions = Model.resumeAllActions(root.snapshots)
-    for (var i = 0; i < actions.length; i++) root.runControl(actions[i].serviceId, actions[i].action)
-  }
-
   function runControl(serviceId, action, itemId) {
     var service = null
     for (var i = 0; i < root.services.length; i++) {
@@ -820,15 +810,13 @@ Item {
     if (service.kind === "sabnzbd") {
       var extra = {}
       var mode = action
-      if (action === "pause-all") mode = "pause"
-      else if (action === "resume-all") mode = "resume"
-      else if (action === "pause-item") {
+      if (action === "pause-item") {
         mode = "queue"
         extra = { name: "pause", value: String(itemId || "") }
       } else if (action === "resume-item") {
         mode = "queue"
         extra = { name: "resume", value: String(itemId || "") }
-      }
+      } else return
       root.commandReq("command", service, {
         url: Model.sabApiUrl(service.url),
         method: "POST",
@@ -836,8 +824,9 @@ Item {
       })
     }
     if (service.kind === "qbittorrent") {
-      var pause = action === "pause-all" || action === "pause-item"
-      var hashes = action.indexOf("all") !== -1 ? "all" : String(itemId || "")
+      if (action !== "pause-item" && action !== "resume-item") return
+      var pause = action === "pause-item"
+      var hashes = String(itemId || "")
       root.commandReq("command", service, {
         url: pause ? Model.qbitPauseUrl(service.url) : Model.qbitResumeUrl(service.url),
         method: "POST",

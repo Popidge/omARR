@@ -1665,38 +1665,6 @@ function kindFromPort(port) {
   return PORT_KINDS[key] || "generic"
 }
 
-function pauseAllActions(snapshots) {
-  var list = Array.isArray(snapshots) ? snapshots : []
-  var out = []
-  for (var i = 0; i < list.length; i++) {
-    var snap = list[i]
-    if (!snap || snap.health === "down") continue
-    if (snap.kind === "sabnzbd" && !snap.paused) {
-      out.push({ serviceId: snap.id, kind: "sabnzbd", action: "pause-all" })
-    }
-    if (snap.kind === "qbittorrent") {
-      out.push({ serviceId: snap.id, kind: "qbittorrent", action: "pause-all" })
-    }
-  }
-  return out
-}
-
-function resumeAllActions(snapshots) {
-  var list = Array.isArray(snapshots) ? snapshots : []
-  var out = []
-  for (var i = 0; i < list.length; i++) {
-    var snap = list[i]
-    if (!snap || snap.health === "down") continue
-    if (snap.kind === "sabnzbd" && snap.paused) {
-      out.push({ serviceId: snap.id, kind: "sabnzbd", action: "resume-all" })
-    }
-    if (snap.kind === "qbittorrent") {
-      out.push({ serviceId: snap.id, kind: "qbittorrent", action: "resume-all" })
-    }
-  }
-  return out
-}
-
 function posterCachePath(cacheDir, serviceId, itemId) {
   var safe = function(value) {
     return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
@@ -1716,14 +1684,6 @@ function splitHttp(text) {
   var nl = raw.lastIndexOf("\n")
   if (nl === -1) return { body: raw, status: 0 }
   return { body: raw.slice(0, nl), status: parseInt(raw.slice(nl + 1), 10) || 0 }
-}
-
-function anyDownloader(snapshots) {
-  var list = Array.isArray(snapshots) ? snapshots : []
-  for (var i = 0; i < list.length; i++) {
-    if (list[i].kind === "sabnzbd" || list[i].kind === "qbittorrent") return true
-  }
-  return false
 }
 
 function snapshotById(snapshots, id) {
@@ -1860,12 +1820,9 @@ if (typeof module !== "undefined" && module.exports) {
     scanTargets: scanTargets,
     scanUrl: scanUrl,
     kindFromPort: kindFromPort,
-    pauseAllActions: pauseAllActions,
-    resumeAllActions: resumeAllActions,
     posterCachePath: posterCachePath,
     fanartCachePath: fanartCachePath,
     splitHttp: splitHttp,
-    anyDownloader: anyDownloader,
     snapshotById: snapshotById
   }
 }
