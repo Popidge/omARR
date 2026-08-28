@@ -147,7 +147,7 @@ Column {
 
   Item {
     width: parent.width
-    height: Math.max(header.implicitHeight, listTabs.implicitHeight, backBtn.implicitHeight)
+    height: Math.max(header.implicitHeight, listTabs.implicitHeight, headerActions.implicitHeight)
 
     PanelSectionHeader {
       id: header
@@ -162,7 +162,7 @@ Column {
     Flow {
       id: listTabs
       anchors.left: parent.left
-      anchors.right: backBtn.left
+      anchors.right: headerActions.left
       anchors.rightMargin: Style.space(8)
       anchors.verticalCenter: parent.verticalCenter
       spacing: Style.space(12)
@@ -208,20 +208,42 @@ Column {
       }
     }
 
-    PanelActionButton {
-      id: backBtn
+    Row {
+      id: headerActions
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      iconText: "󰅖"
-      tooltipText: root.mode === "edit" ? "Back" : "Close settings"
-      foreground: root.foreground
-      fontFamily: root.fontFamily
-      onClicked: {
-        if (root.mode === "edit") {
-          root.resetForm()
-          root.mode = "list"
-        } else {
-          root.closeSettings()
+      spacing: Style.space(2)
+
+      PanelActionButton {
+        visible: root.mode === "list" && root.listTab === "fleet"
+        iconText: "󰐕"
+        tooltipText: "Add service"
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        onClicked: root.startAdd()
+      }
+
+      PanelActionButton {
+        visible: root.mode === "list" && root.listTab === "fleet"
+        iconText: "󰍉"
+        tooltipText: root.scanning ? "Scanning…" : "Scan local ports"
+        foreground: root.scanning ? Color.accent : root.foreground
+        fontFamily: root.fontFamily
+        onClicked: if (root.service) root.service.startScan()
+      }
+
+      PanelActionButton {
+        iconText: "󰅖"
+        tooltipText: root.mode === "edit" ? "Back" : "Close settings"
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        onClicked: {
+          if (root.mode === "edit") {
+            root.resetForm()
+            root.mode = "list"
+          } else {
+            root.closeSettings()
+          }
         }
       }
     }
@@ -290,33 +312,6 @@ Column {
     spacing: Style.space(8)
     visible: root.mode === "list" && root.listTab === "fleet"
     height: visible ? implicitHeight : 0
-
-    Item {
-      width: parent.width
-      height: addBtn.implicitHeight
-
-      Row {
-        anchors.right: parent.right
-        spacing: Style.space(2)
-
-        PanelActionButton {
-          iconText: "󰐕"
-          tooltipText: "Add service"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          onClicked: root.startAdd()
-        }
-
-        PanelActionButton {
-          id: addBtn
-          iconText: "󰍉"
-          tooltipText: root.scanning ? "Scanning…" : "Scan local ports"
-          foreground: root.scanning ? Color.accent : root.foreground
-          fontFamily: root.fontFamily
-          onClicked: if (root.service) root.service.startScan()
-        }
-      }
-    }
 
     Text {
       visible: root.scanning
