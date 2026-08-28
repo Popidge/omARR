@@ -49,7 +49,6 @@ Item {
   readonly property string density: pluginSettings.density
   readonly property bool showProgressToast: pluginSettings.showProgressToast !== false
   readonly property bool configured: services.length > 0
-  readonly property bool downloaderBusy: Model.downloaderBusy(root.snapshots)
 
   property var reqQueue: []
   property var currentReq: null
@@ -692,7 +691,7 @@ Item {
       root.enqueue({ kind: "arr-wanted", serviceId: service.id, url: Model.arrWantedUrl(service.url, service.kind), headerText: header })
   }
 
-  function enqueueSab(service) {
+  function enqueueSab(service, queueOnly) {
     var auth = root.cred(service.id)
     root.enqueue({
       kind: "sab-queue",
@@ -701,6 +700,7 @@ Item {
       method: "POST",
       bodyText: Model.sabBody(auth.apiKey, "queue", null, root.pageSize)
     })
+    if (queueOnly) return
     root.enqueue({
       kind: "sab-history",
       serviceId: service.id,
@@ -786,15 +786,24 @@ Item {
   function enqueuePoll(scope) {
     if (root.reqQueue.length) return
     var downloaders = scope === "downloaders"
-    for (var i = 0; i < root.services.length; i++) {
-      var svc = root.services[i]
-      if (!Model.isHttpUrl(svc.url)) continue
-      if (downloaders && svc.kind !== "sabnzbd" && svc.kind !== "qbittorrent") continue
+    function enqueueOne(svc) {
+      if (!Model.isHttpUrl(svc.url)) return
       if (svc.kind === "sonarr" || svc.kind === "radarr") root.enqueueArr(svc)
-      else if (svc.kind === "sabnzbd") root.enqueueSab(svc)
+      else if (svc.kind === "sabnzbd") root.enqueueSab(svc, downloaders)
       else if (svc.kind === "qbittorrent") root.enqueueQbit(svc)
+      else if (downloaders) return
       else if (svc.kind === "plex") root.enqueuePlex(svc)
       else root.enqueueGeneric(svc)
+    }
+    for (var i = 0; i < root.services.length; i++) {
+      var downloader = root.services[i]
+      if (downloader.kind === "sabnzbd" || downloader.kind === "qbittorrent") enqueueOne(downloader)
+    }
+    if (downloaders) return
+    for (var j = 0; j < root.services.length; j++) {
+      var other = root.services[j]
+      if (other.kind === "sabnzbd" || other.kind === "qbittorrent") continue
+      enqueueOne(other)
     }
   }
 
@@ -804,9 +813,25 @@ Item {
     root.pump()
   }
 
+  function hasDownloaderRequest() {
+    function isDl(req) {
+      if (!req) return false
+      var k = String(req.kind || "")
+      return k === "sab-queue" || k.indexOf("qbit-") === 0
+    }
+    if (isDl(root.currentReq)) return true
+    for (var i = 0; i < root.reqQueue.length; i++) {
+      if (isDl(root.reqQueue[i])) return true
+    }
+    return false
+  }
+
   function forceDownloaderPoll() {
-    if (root.reqQueue.length || apiProc.running) return
+    if (root.writingFiles || root.hasDownloaderRequest()) return
+    var rest = root.reqQueue
+    root.reqQueue = []
     root.enqueuePoll("downloaders")
+    root.reqQueue = root.reqQueue.concat(rest)
     root.pump()
   }
 
@@ -1073,7 +1098,7 @@ Item {
 
   Timer {
     interval: Model.DOWNLOAD_POLL_MS
-    running: root.dirsReady && root.downloaderBusy
+    running: root.dirsReady
     repeat: true
     onTriggered: root.forceDownloaderPoll()
   }

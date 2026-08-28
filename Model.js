@@ -1280,6 +1280,7 @@ function isProgressToastItem(item, snap) {
   if (progress >= 1) return false
   var speed = Number(item.dlspeed) || (snap && Number(snap.speed)) || 0
   if (speed > 0) return true
+  if (status.indexOf("download") !== -1 || status === "active" || status === "forcedl") return true
   return progress > 0 && progress < 1
 }
 

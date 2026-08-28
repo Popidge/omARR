@@ -33,7 +33,7 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 
 Toasts for grabs, imports, Plex library adds, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
 
-While SABnzbd or qBittorrent is actually downloading, a progress card stays on screen (progress bar, title, client icon, poster when *arr has one). Those two clients poll every 2s while a job is active; everything else stays on the interval in settings. Seeding torrents are ignored. Dismiss it until that job finishes; turn the card off in settings.
+While SABnzbd or qBittorrent is actually downloading, a progress card stays on screen (progress bar, title, client icon, poster when *arr has one). Those two clients poll every 2s so short jobs still get a card; everything else stays on the interval in settings. Seeding torrents are ignored. Dismiss it until that job finishes; turn the card off in settings.
 
 ## Settings
 

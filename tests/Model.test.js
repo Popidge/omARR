@@ -884,6 +884,10 @@ check(Model.progressToast([sabProgressSnap([{
   id: "nzo1", title: "Queued", status: "queued", progress: 0, kind: "sabnzbd"
 }])]) === null, "progress toast skips queued sab")
 
+check(Model.progressToast([sabProgressSnap([{
+  id: "nzo1", title: "Show.S01E01", status: "downloading", progress: 0, kind: "sabnzbd"
+}], { speed: 0 })]) !== null, "progress toast shows sab at start")
+
 var qbitSnap = {
   id: "qbit",
   kind: "qbittorrent",
