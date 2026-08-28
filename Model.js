@@ -1270,9 +1270,11 @@ function jellyfinItemImage(row) {
   var item = row && typeof row === "object" ? row : {}
   var backdrops = Array.isArray(item.BackdropImageTags) ? item.BackdropImageTags : []
   var parentBackdrops = Array.isArray(item.ParentBackdropImageTags) ? item.ParentBackdropImageTags : []
+  var images = item.ImageTags && typeof item.ImageTags === "object" ? item.ImageTags : {}
   if (backdrops.length && item.Id) return { id: String(item.Id), type: "Backdrop" }
   if (parentBackdrops.length && item.ParentBackdropItemId)
     return { id: String(item.ParentBackdropItemId), type: "Backdrop" }
+  if (images.Primary && item.Id) return { id: String(item.Id), type: "Primary" }
   if (item.ParentPrimaryImageItemId) return { id: String(item.ParentPrimaryImageItemId), type: "Primary" }
   if (item.SeriesId && item.SeriesPrimaryImageTag) return { id: String(item.SeriesId), type: "Primary" }
   return { id: String(item.Id || ""), type: "Primary" }

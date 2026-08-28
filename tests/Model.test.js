@@ -647,6 +647,18 @@ assert.equal(jellyfinDeck[0].progress, 0.25, "jellyfin resume progress")
 assert.equal(jellyfinDeck[0].artItemId, "series-id", "jellyfin series artwork")
 assert.equal(jellyfinDeck[0].rating, 8.4, "jellyfin community rating")
 
+var jellyfinEpisodeStill = Model.parseJellyfinLibrary(JSON.stringify([{
+  Id: "episode-still-id",
+  Type: "Episode",
+  Name: "Finale",
+  SeriesName: "Show",
+  SeriesId: "series-id",
+  SeriesPrimaryImageTag: "series-tag",
+  ImageTags: { Primary: "episode-tag" }
+}]), 20)
+assert.equal(jellyfinEpisodeStill[0].artItemId, "episode-still-id", "jellyfin prefers episode still")
+assert.equal(jellyfinEpisodeStill[0].artType, "Primary", "jellyfin episode still type")
+
 var jellyfinRecent = Model.parseJellyfinLibrary(JSON.stringify([{
   Id: "movie-id",
   Type: "Movie",
