@@ -1,10 +1,24 @@
 # omARR
 
-An overview of locally hosted services, in the Omarchy bar.
+The Omarchy Arr stack desktop plugin for homelabs.
 
-Glance the icon for downloads and outages. Open the panel for a fleet roster, a merged “now” feed (queues, tonight’s *arr calendar, Plex on deck, health), and per-service controls. Sonarr, Radarr, SABnzbd, Plex, and qBittorrent can log in with an API key, token, or password; everything else is a generic tile that health-checks and opens in the browser.
+omARR is an [Omarchy](https://omarchy.org/) bar plugin for homelab people who already run Sonarr, Radarr, Plex, SABnzbd, or qBittorrent. Click the skull icon to see your *arr fleet on the left and a live content overview on the right. Now playing, on deck, recently added, and calendar. Add custom links and use as a homelab launcher, all without leaving the Omarchy desktop.
+
+**Top features**
+
+- Bar badge for active downloads and outages
+- Fleet roster with live health for every service you add
+- Overview: Plex now playing and on deck, Sonarr/Radarr calendar, SABnzbd and qBittorrent queues
+- Live download notification card that stays up while SAB or qBit is actually downloading
+- Toasts for grabs, imports, finished or failed downloads, and services that drop or recover
+- Pause and resume a job from the panel
+- Scan local ports, or add any URL as a generic up/down tile
+- Add custom links and use as a launcher
+- Deeper support for more services coming soon
 
 Plugins run unsandboxed inside `omarchy-shell` with your user permissions. Read the code before you enable it.
+
+![omARR panel](docs/panel.png)
 
 ## Install
 
