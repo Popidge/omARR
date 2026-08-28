@@ -1652,6 +1652,25 @@ function toastGlyph(event) {
   return "󰕙"
 }
 
+function toastCommand(event) {
+  var row = event || {}
+  var urgent = row.type === "service-down" || row.type === "download-failed"
+  return [
+    "omarchy-notification-send",
+    "--app-name", "omARR",
+    "-u", urgent ? "normal" : "low",
+    "-g", toastGlyph(row),
+    toastTitle(row),
+    toastBody(row),
+    "--exec",
+    "omarchy-shell",
+    "shell",
+    "summon",
+    PLUGIN_ID,
+    "{}"
+  ]
+}
+
 function scanTargets() {
   return SCAN_TARGETS.slice()
 }
@@ -1817,6 +1836,7 @@ if (typeof module !== "undefined" && module.exports) {
     toastTitle: toastTitle,
     toastBody: toastBody,
     toastGlyph: toastGlyph,
+    toastCommand: toastCommand,
     scanTargets: scanTargets,
     scanUrl: scanUrl,
     kindFromPort: kindFromPort,

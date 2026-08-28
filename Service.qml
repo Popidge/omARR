@@ -31,6 +31,7 @@ Item {
   property bool badgeUrgent: false
   property bool seeding: true
   property bool dirsReady: false
+  property var toastQueue: []
 
   readonly property string home: Quickshell.env("HOME")
   readonly property string stateDir: home + "/.local/state/omarchy/omarr"
@@ -341,18 +342,17 @@ Item {
   }
 
   function sendToast(event) {
-    var cmd = [
-      "omarchy-notification-send",
-      "--app-name", "omARR",
-      "-u", event.type === "service-down" || event.type === "download-failed" ? "normal" : "low",
-      "-g", Model.toastGlyph(event),
-      "--exec", "omarchy-shell shell summon " + Model.PLUGIN_ID + " '{}'",
-      Model.toastTitle(event),
-      Model.toastBody(event)
-    ]
-    toastProc.command = cmd
-    toastProc.running = true
+    root.toastQueue = root.toastQueue.concat([Model.toastCommand(event)])
     root.unreadCount += 1
+    root.pumpToasts()
+  }
+
+  function pumpToasts() {
+    if (toastProc.running || !root.toastQueue.length) return
+    var next = root.toastQueue.slice()
+    toastProc.command = next.shift()
+    root.toastQueue = next
+    toastProc.running = true
   }
 
   function clearUnread() {
@@ -976,6 +976,7 @@ Item {
   Process {
     id: toastProc
     running: false
+    onExited: Qt.callLater(root.pumpToasts)
   }
 
   Process {

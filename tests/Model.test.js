@@ -746,6 +746,12 @@ check(Model.toastTitle(imported).indexOf("imported") !== -1, "import toast title
 check(Model.toastTitle(grab).length > 0, "toast title")
 check(Model.toastBody(grab).length > 0, "toast body")
 check(Model.toastGlyph(grab).length > 0, "toast glyph")
+var toastCmd = Model.toastCommand(grab)
+checkEqual(toastCmd[0], "omarchy-notification-send", "toast binary")
+check(toastCmd.indexOf("--exec") > toastCmd.indexOf(Model.toastTitle(grab)), "exec after headline")
+checkEqual(toastCmd[toastCmd.indexOf("--exec") + 1], "omarchy-shell", "exec is split argv")
+check(toastCmd[toastCmd.indexOf("--exec") + 1].indexOf(" ") === -1, "exec not one quoted string")
+checkEqual(toastCmd[toastCmd.indexOf("--exec") + 4], Model.PLUGIN_ID, "summon plugin id")
 
 var sabPrev = Model.emptySnapshot({ id: "z", kind: "sabnzbd", name: "SABnzbd", url: "http://z", group: "Downloads" })
 sabPrev.health = "up"
