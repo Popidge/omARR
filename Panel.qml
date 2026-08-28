@@ -13,6 +13,7 @@ Panel {
   property var hostWidget: null
   property var service: null
   property bool showSettings: false
+  property bool pendingAdd: false
   property int selectedIndex: -1
   property string detailId: ""
   property string homeTab: "ondeck"
@@ -120,6 +121,15 @@ Panel {
   function goOverview() {
     root.detailId = ""
     root.selectedIndex = -1
+  }
+
+  function openAddService() {
+    root.pendingAdd = true
+    root.showSettings = true
+    if (settingsLoader.item) {
+      settingsLoader.item.startAdd()
+      root.pendingAdd = false
+    }
   }
 
   function moveCursor(dx, dy) {
@@ -334,10 +344,22 @@ Panel {
           PanelSeparator { foreground: root.contentForeground }
         }
 
-          Item {
+            Item {
             id: body
             width: parent.width
             height: Math.max(0, parent.height - headerBar.height - parent.spacing)
+
+            PanelActionButton {
+              z: 2
+              anchors.left: parent.left
+              anchors.bottom: parent.bottom
+              visible: !root.showSettings
+              iconText: "󰐕"
+              tooltipText: "Add service"
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              onClicked: root.openAddService()
+            }
 
             Flickable {
               id: settingsFlick
@@ -365,6 +387,10 @@ Panel {
                 active: root.showSettings
                 visible: active
                 sourceComponent: settingsComp
+                onLoaded: if (root.pendingAdd) {
+                  item.startAdd()
+                  root.pendingAdd = false
+                }
               }
             }
 
