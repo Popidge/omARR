@@ -36,7 +36,7 @@ omARR gets Jellyfin data from these API endpoints:
 
 Resumable items use the selected profile. Active sessions include the user, device, playback state, and progress.
 
-omARR prefers landscape backdrops and episode stills. It uses a series poster when landscape artwork is not available.
+omARR prefers landscape backdrops and episode stills. If landscape artwork is not available, omARR uses a series poster.
 
 ## Credentials
 
