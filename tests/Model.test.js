@@ -611,27 +611,28 @@ assert.equal(plexNow[0].title, "Film", "plex watching title")
 assert.ok(plexNow[0].subtitle.indexOf("del") !== -1, "plex watching user")
 assert.equal(plexNow[0].progress, 0.25, "plex session progress")
 
+// Synthetic payloads keep personal server and library data out of the test suite.
 var jellyfinIdent = Model.parseJellyfinIdentity(JSON.stringify({
-  ServerName: "JT-Homelab", Version: "10.11.11", ProductName: "Jellyfin Server"
+  ServerName: "Test Server", Version: "1.2.3", ProductName: "Jellyfin Server"
 }))
-assert.equal(jellyfinIdent.name, "JT-Homelab", "jellyfin server name")
-assert.equal(jellyfinIdent.version, "10.11.11", "jellyfin version")
+assert.equal(jellyfinIdent.name, "Test Server", "jellyfin server name")
+assert.equal(jellyfinIdent.version, "1.2.3", "jellyfin version")
 assert.ok(jellyfinIdent.healthy === true, "jellyfin identity ok")
 
 var jellyfinUsers = JSON.stringify([
-  { Id: "disabled", Name: "Old", Policy: { IsDisabled: true } },
-  { Id: "jamie-id", Name: "Jamie", Policy: { IsDisabled: false } },
-  { Id: "guest-id", Name: "Guest", Policy: { IsDisabled: false } }
+  { Id: "disabled-user", Name: "Disabled User", Policy: { IsDisabled: true } },
+  { Id: "primary-user", Name: "Primary User", Policy: { IsDisabled: false } },
+  { Id: "guest-user", Name: "Guest User", Policy: { IsDisabled: false } }
 ])
-assert.equal(Model.pickJellyfinUser(jellyfinUsers, "jAmIe").id, "jamie-id", "jellyfin profile match")
-assert.equal(Model.pickJellyfinUser(jellyfinUsers, "").id, "jamie-id", "jellyfin first enabled profile")
+assert.equal(Model.pickJellyfinUser(jellyfinUsers, "pRiMaRy UsEr").id, "primary-user", "jellyfin profile match")
+assert.equal(Model.pickJellyfinUser(jellyfinUsers, "").id, "primary-user", "jellyfin first enabled profile")
 assert.equal(Model.pickJellyfinUser(jellyfinUsers, "missing").id, "", "jellyfin missing profile")
 
 var jellyfinDeck = Model.parseJellyfinLibrary(JSON.stringify({ Items: [{
   Id: "episode-id",
   Type: "Episode",
-  Name: "Pilot",
-  SeriesName: "Show",
+  Name: "First Episode",
+  SeriesName: "Example Series",
   SeriesId: "series-id",
   SeriesPrimaryImageTag: "series-tag",
   ParentIndexNumber: 1,
@@ -641,7 +642,7 @@ var jellyfinDeck = Model.parseJellyfinLibrary(JSON.stringify({ Items: [{
   UserData: { PlaybackPositionTicks: 10000000, PlayedPercentage: 25, Played: false }
 }] }), 20)
 assert.equal(jellyfinDeck.length, 1, "jellyfin deck len")
-assert.equal(jellyfinDeck[0].title, "Show", "jellyfin episode uses series title")
+assert.equal(jellyfinDeck[0].title, "Example Series", "jellyfin episode uses series title")
 assert.ok(jellyfinDeck[0].subtitle.indexOf("S01E01") !== -1, "jellyfin episode code")
 assert.equal(jellyfinDeck[0].progress, 0.25, "jellyfin resume progress")
 assert.equal(jellyfinDeck[0].artItemId, "series-id", "jellyfin series artwork")
@@ -650,8 +651,8 @@ assert.equal(jellyfinDeck[0].rating, 8.4, "jellyfin community rating")
 var jellyfinEpisodeStill = Model.parseJellyfinLibrary(JSON.stringify([{
   Id: "episode-still-id",
   Type: "Episode",
-  Name: "Finale",
-  SeriesName: "Show",
+  Name: "Last Episode",
+  SeriesName: "Example Series",
   SeriesId: "series-id",
   SeriesPrimaryImageTag: "series-tag",
   ImageTags: { Primary: "episode-tag" }
@@ -662,25 +663,25 @@ assert.equal(jellyfinEpisodeStill[0].artType, "Primary", "jellyfin episode still
 var jellyfinRecent = Model.parseJellyfinLibrary(JSON.stringify([{
   Id: "movie-id",
   Type: "Movie",
-  Name: "Film",
-  ProductionYear: 2026,
+  Name: "Example Movie",
+  ProductionYear: 2000,
   BackdropImageTags: ["backdrop-tag"],
   UserData: { Played: true }
 }]), 20)
-assert.equal(jellyfinRecent[0].subtitle, "2026", "jellyfin movie year")
+assert.equal(jellyfinRecent[0].subtitle, "2000", "jellyfin movie year")
 assert.equal(jellyfinRecent[0].artItemId, "movie-id", "jellyfin movie artwork")
 assert.equal(jellyfinRecent[0].artType, "Backdrop", "jellyfin prefers backdrop")
 assert.ok(jellyfinRecent[0].watched === true, "jellyfin watched state")
 
 var jellyfinNow = Model.parseJellyfinSessions(JSON.stringify([
-  { UserName: "Jamie", DeviceName: "TV", PlayState: { PositionTicks: 100, IsPaused: true }, NowPlayingItem: {
-    Id: "now-id", Type: "Movie", Name: "Now", RunTimeTicks: 400
+  { UserName: "Test User", DeviceName: "Test Player", PlayState: { PositionTicks: 100, IsPaused: true }, NowPlayingItem: {
+    Id: "now-id", Type: "Movie", Name: "Example Movie", RunTimeTicks: 400
   } },
-  { UserName: "Idle", DeviceName: "Phone" }
+  { UserName: "Idle User", DeviceName: "Idle Device" }
 ]), 20)
 assert.equal(jellyfinNow.length, 1, "jellyfin active session")
 assert.equal(jellyfinNow[0].progress, 0.25, "jellyfin session progress")
-assert.ok(jellyfinNow[0].subtitle.indexOf("Jamie · TV · Paused") !== -1, "jellyfin session context")
+assert.ok(jellyfinNow[0].subtitle.indexOf("Test User · Test Player · Paused") !== -1, "jellyfin session context")
 
 var snap = Model.emptySnapshot({ id: "svc-1", kind: "sonarr", name: "Sonarr", url: "http://s:8989", group: "Media" })
 assert.equal(snap.health, "unknown", "empty health")
