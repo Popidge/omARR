@@ -18,6 +18,8 @@ omARR is an [Omarchy](https://omarchy.org/) bar plugin for homelab people who al
 - Add custom links and use as a launcher
 - Deeper support for more services coming soon
 
+![omARR download notification](docs/download-toast.png)
+
 Plugins run unsandboxed inside `omarchy-shell` with your user permissions. Read the code before you enable it.
 
 ## Install
