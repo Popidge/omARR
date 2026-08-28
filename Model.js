@@ -1011,10 +1011,12 @@ function formEncode(obj) {
 
 function sabBody(apiKey, mode, extra, pageSize) {
   var data = { apikey: String(apiKey || ""), mode: String(mode || "queue"), output: "json" }
-  if (String(mode || "queue") === "queue") {
+  var kind = String(mode || "queue")
+  if (kind === "queue" || kind === "history") {
     data.limit = String(clampPageSize(pageSize))
     data.start = "0"
   }
+  if (kind === "history") data.archive = "1"
   var more = extra && typeof extra === "object" ? extra : {}
   for (var key in more) data[key] = more[key]
   return formEncode(data)
