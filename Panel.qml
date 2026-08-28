@@ -257,10 +257,10 @@ Panel {
             Item {
               id: hero
               anchors.left: parent.left
-              anchors.right: headerActions.left
-              anchors.rightMargin: Style.space(8)
               anchors.verticalCenter: parent.verticalCenter
-              implicitHeight: Math.max(headerIcon.implicitHeight, heroLabels.implicitHeight)
+              implicitWidth: headerIcon.width + Style.space(6) + heroTitle.implicitWidth
+              width: implicitWidth
+              implicitHeight: Math.max(headerIcon.implicitHeight, heroTitle.implicitHeight)
               height: implicitHeight
 
               OmarrIcon {
@@ -271,38 +271,37 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
               }
 
-              Column {
-                id: heroLabels
+              Text {
+                id: heroTitle
                 anchors.left: headerIcon.right
                 anchors.leftMargin: Style.space(6)
-                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: -Style.space(1)
-
-                Text {
-                  width: parent.width
-                  text: "omARR"
-                  color: root.contentForeground
-                  font.family: root.contentFontFamily
-                  font.pixelSize: Style.font.title
-                  font.bold: true
-                  elide: Text.ElideRight
-                  textFormat: Text.PlainText
-                }
-
-                Text {
-                  width: parent.width
-                  text: root.service ? String(root.service.statusText || "").toUpperCase() : ""
-                  visible: text !== ""
-                  color: root.dim
-                  font.family: root.contentFontFamily
-                  font.pixelSize: Style.font.caption
-                  font.bold: true
-                  font.letterSpacing: 1.2
-                  elide: Text.ElideRight
-                  textFormat: Text.PlainText
-                }
+                text: "omARR"
+                color: root.contentForeground
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.title
+                font.bold: true
+                textFormat: Text.PlainText
               }
+            }
+
+            Text {
+              id: heroMeta
+              anchors.left: hero.right
+              anchors.right: headerActions.left
+              anchors.leftMargin: Style.space(8)
+              anchors.rightMargin: Style.space(8)
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.service ? String(root.service.statusText || "").toUpperCase() : ""
+              visible: text !== ""
+              color: root.dim
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.letterSpacing: 1.2
+              horizontalAlignment: Text.AlignHCenter
+              elide: Text.ElideRight
+              textFormat: Text.PlainText
             }
 
             Row {
