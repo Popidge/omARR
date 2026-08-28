@@ -28,6 +28,7 @@ Column {
   property bool formNotifyHealth: true
   property bool formShowQueue: false
   property bool formShowCalendar: false
+  property string listTab: "settings"
 
   readonly property bool needsKey: Model.kindNeedsApiKey(formKind)
   readonly property bool needsUser: Model.kindNeedsUserPass(formKind)
@@ -73,12 +74,14 @@ Column {
   }
 
   function startAdd() {
+    listTab = "fleet"
     resetForm()
     mode = "edit"
   }
 
   function startEdit(row) {
     if (!row) return
+    listTab = "fleet"
     mode = "edit"
     editingId = row.id
     setFormKind(row.kind)
@@ -137,15 +140,65 @@ Column {
 
   Item {
     width: parent.width
-    height: Math.max(header.implicitHeight, backBtn.implicitHeight)
+    height: Math.max(header.implicitHeight, listTabs.implicitHeight, backBtn.implicitHeight)
 
     PanelSectionHeader {
       id: header
       anchors.left: parent.left
       anchors.verticalCenter: parent.verticalCenter
-      text: root.mode === "edit" ? (root.editingId ? "EDIT SERVICE" : "ADD SERVICE") : "SETTINGS"
+      visible: root.mode === "edit"
+      text: root.editingId ? "EDIT SERVICE" : "ADD SERVICE"
       foreground: root.foreground
       fontFamily: root.fontFamily
+    }
+
+    Flow {
+      id: listTabs
+      anchors.left: parent.left
+      anchors.right: backBtn.left
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.space(12)
+      visible: root.mode === "list"
+
+      Repeater {
+        model: [
+          { "id": "settings", "label": "SETTINGS" },
+          { "id": "fleet", "label": "FLEET" }
+        ]
+
+        Item {
+          id: listTabChip
+          required property var modelData
+          width: listTabLabel.implicitWidth
+          height: listTabLabel.implicitHeight + Style.space(6)
+
+          Text {
+            id: listTabLabel
+            text: listTabChip.modelData.label
+            color: root.listTab === listTabChip.modelData.id ? root.foreground : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            textFormat: Text.PlainText
+          }
+
+          Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            visible: root.listTab === listTabChip.modelData.id
+            color: root.foreground
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.listTab = listTabChip.modelData.id
+          }
+        }
+      }
     }
 
     PanelActionButton {
@@ -170,7 +223,7 @@ Column {
   Column {
     width: parent.width
     spacing: Style.space(8)
-    visible: root.mode === "list"
+    visible: root.mode === "list" && root.listTab === "settings"
     height: visible ? implicitHeight : 0
 
     NumberField {
@@ -223,25 +276,20 @@ Column {
       onClicked: if (root.service)
         root.service.persistSettings({ showProgressToast: !root.service.showProgressToast })
     }
+  }
 
-    PanelSeparator { foreground: root.foreground }
+  Column {
+    width: parent.width
+    spacing: Style.space(8)
+    visible: root.mode === "list" && root.listTab === "fleet"
+    height: visible ? implicitHeight : 0
 
     Item {
       width: parent.width
-      height: Math.max(fleetHeader.implicitHeight, addBtn.implicitHeight)
-
-      PanelSectionHeader {
-        id: fleetHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "FLEET"
-        foreground: root.foreground
-        fontFamily: root.fontFamily
-      }
+      height: addBtn.implicitHeight
 
       Row {
         anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(2)
 
         PanelActionButton {
