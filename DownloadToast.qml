@@ -34,7 +34,7 @@ Item {
   readonly property string posterUrl: {
     if (!posterPath) return ""
     var rev = service && service.artRev ? service.artRev[posterPath] : 0
-    return "file://" + posterPath + "?" + (rev || 0)
+    return Model.fileUrl(posterPath, rev || 0)
   }
   readonly property bool posterReady: posterImage.status === Image.Ready
   readonly property string metaLine: {

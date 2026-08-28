@@ -18,18 +18,7 @@ var KIND_DEFAULTS = {
   plex: { name: "Plex", group: "Media", port: 32400 }
 }
 
-var PORT_KINDS = {
-  "8989": "sonarr",
-  "7878": "radarr",
-  "9696": "generic",
-  "8096": "generic",
-  "32400": "plex",
-  "8123": "generic",
-  "5055": "generic",
-  "8080": "generic"
-}
-
-var SCAN_TARGETS = [
+var SCAN_SERVICES = [
   { kind: "sonarr", port: 8989, name: "Sonarr" },
   { kind: "radarr", port: 7878, name: "Radarr" },
   { kind: "sabnzbd", port: 8080, name: "SABnzbd" },
@@ -670,12 +659,16 @@ function listPager(page, count, total, pageSize) {
   return { page: p, hasPrev: hasPrev, hasNext: hasNext, from: from, to: to, total: tot, label: label }
 }
 
+function apiUrl(base, path) {
+  return normalizeUrl(base) + String(path || "")
+}
+
 function arrStatusUrl(base) {
-  return normalizeUrl(base) + "/api/v3/system/status"
+  return apiUrl(base, "/api/v3/system/status")
 }
 
 function arrQueueUrl(base, page, pageSize) {
-  return normalizeUrl(base) + "/api/v3/queue?page=" + listPage(page) + "&pageSize=" + clampPageSize(pageSize)
+  return apiUrl(base, "/api/v3/queue?page=" + listPage(page) + "&pageSize=" + clampPageSize(pageSize))
 }
 
 function arrTotalRecords(raw) {
@@ -685,14 +678,14 @@ function arrTotalRecords(raw) {
 }
 
 function arrCalendarUrl(base, start, end) {
-  return normalizeUrl(base) + "/api/v3/calendar?start=" + encodeURIComponent(start) +
-    "&end=" + encodeURIComponent(end) + "&unmonitored=false&includeSeries=true"
+  return apiUrl(base, "/api/v3/calendar?start=" + encodeURIComponent(start) +
+    "&end=" + encodeURIComponent(end) + "&unmonitored=false&includeSeries=true")
 }
 
 function arrWantedUrl(base, kind) {
   var path = "/api/v3/wanted/missing?page=1&pageSize=10"
   if (kindOf(kind) === "sonarr") path += "&includeSeries=true"
-  return normalizeUrl(base) + path
+  return apiUrl(base, path)
 }
 
 function arrHistoryUrl(base, kind, pageSize) {
@@ -700,19 +693,19 @@ function arrHistoryUrl(base, kind, pageSize) {
     + "&sortKey=date&sortDirection=descending"
   if (kindOf(kind) === "sonarr") path += "&includeSeries=true"
   if (kindOf(kind) === "radarr") path += "&includeMovie=true"
-  return normalizeUrl(base) + path
+  return apiUrl(base, path)
 }
 
 function arrPosterUrl(base, kind, id) {
-  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/poster-500.jpg"
+  return apiUrl(base, "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/poster-500.jpg")
 }
 
 function arrFanartUrl(base, id) {
-  return normalizeUrl(base) + "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/fanart.jpg"
+  return apiUrl(base, "/api/v3/mediacover/" + encodeURIComponent(String(id || "")) + "/fanart.jpg")
 }
 
 function arrCommandUrl(base) {
-  return normalizeUrl(base) + "/api/v3/command"
+  return apiUrl(base, "/api/v3/command")
 }
 
 function parseJson(raw, fallback) {
@@ -793,43 +786,55 @@ function formatRating(value, source) {
   return text
 }
 
+function arrListItem(row, kind) {
+  var item = row && typeof row === "object" ? row : {}
+  if (kindOf(kind) === "radarr") {
+    return {
+      id: String(item.id || ""),
+      title: String(item.title || ""),
+      subtitle: String(item.year || ""),
+      posterId: String(item.id || ""),
+      kind: "radarr"
+    }
+  }
+  var show = arrEpisodeShow(item)
+  return {
+    id: String(item.id || ""),
+    title: show.title,
+    subtitle: episodeCode(item.seasonNumber, item.episodeNumber) + (item.title ? " " + item.title : ""),
+    posterId: show.id,
+    kind: "sonarr"
+  }
+}
+
+function arrHistoryTitle(row, kind) {
+  var item = row && typeof row === "object" ? row : {}
+  if (kindOf(kind) === "radarr") {
+    var movie = item.movie && typeof item.movie === "object" ? item.movie : {}
+    return String(movie.title || item.sourceTitle || "")
+  }
+  var show = arrEpisodeShow(item)
+  return show.title || String(item.sourceTitle || "")
+}
+
 function parseArrCalendar(raw, kind, pageSize) {
   var data = parseJson(raw, [])
   var list = Array.isArray(data) ? data : []
   var out = []
-  var isRadarr = kindOf(kind) === "radarr"
   for (var i = 0; i < list.length; i++) {
     var row = list[i] || {}
-    if (isRadarr) {
-      var movieRated = arrRating(row.ratings)
-      out.push({
-        id: String(row.id || ""),
-        title: String(row.title || ""),
-        subtitle: String(row.year || ""),
-        airDate: calendarDayKey(row.inCinemas || row.digitalRelease || row.physicalRelease),
-        hasFile: !!row.hasFile,
-        monitored: row.monitored !== false,
-        posterId: String(row.id || ""),
-        rating: movieRated.value,
-        ratingSource: movieRated.source,
-        kind: "radarr"
-      })
-    } else {
-      var show = arrEpisodeShow(row)
-      var showRated = arrRating((row.series && row.series.ratings) || row.ratings)
-      out.push({
-        id: String(row.id || ""),
-        title: show.title,
-        subtitle: episodeCode(row.seasonNumber, row.episodeNumber) + (row.title ? " " + row.title : ""),
-        airDate: calendarDayKey(row.airDate || row.airDateUtc),
-        hasFile: !!row.hasFile,
-        monitored: row.monitored !== false,
-        posterId: show.id,
-        rating: showRated.value,
-        ratingSource: showRated.source,
-        kind: "sonarr"
-      })
-    }
+    var item = arrListItem(row, kind)
+    var rated = kindOf(kind) === "radarr"
+      ? arrRating(row.ratings)
+      : arrRating((row.series && row.series.ratings) || row.ratings)
+    item.airDate = kindOf(kind) === "radarr"
+      ? calendarDayKey(row.inCinemas || row.digitalRelease || row.physicalRelease)
+      : calendarDayKey(row.airDate || row.airDateUtc)
+    item.hasFile = !!row.hasFile
+    item.monitored = row.monitored !== false
+    item.rating = rated.value
+    item.ratingSource = rated.source
+    out.push(item)
   }
   out.sort(function(a, b) {
     var da = a.airDate || ""
@@ -844,28 +849,7 @@ function parseArrWanted(raw, kind) {
   var data = parseJson(raw, {})
   var records = data && Array.isArray(data.records) ? data.records : []
   var out = []
-  var isRadarr = kindOf(kind) === "radarr"
-  for (var i = 0; i < records.length; i++) {
-    var row = records[i] || {}
-    if (isRadarr) {
-      out.push({
-        id: String(row.id || ""),
-        title: String(row.title || ""),
-        subtitle: String(row.year || ""),
-        posterId: String(row.id || ""),
-        kind: "radarr"
-      })
-    } else {
-      var show = arrEpisodeShow(row)
-      out.push({
-        id: String(row.id || ""),
-        title: show.title,
-        subtitle: episodeCode(row.seasonNumber, row.episodeNumber) + (row.title ? " " + row.title : ""),
-        posterId: show.id,
-        kind: "sonarr"
-      })
-    }
-  }
+  for (var i = 0; i < records.length; i++) out.push(arrListItem(records[i], kind))
   return capList(out)
 }
 
@@ -873,7 +857,6 @@ function parseArrHistory(raw, kind) {
   var data = parseJson(raw, {})
   var records = data && Array.isArray(data.records) ? data.records : (Array.isArray(data) ? data : [])
   var out = []
-  var isRadarr = kindOf(kind) === "radarr"
   for (var i = 0; i < records.length; i++) {
     var row = records[i] || {}
     var eventType = String(row.eventType || "")
@@ -882,17 +865,9 @@ function parseArrHistory(raw, kind) {
     else if (eventType === "downloadFolderImported") status = "imported"
     else if (eventType === "downloadFailed") status = "failed"
     else continue
-    var title = ""
-    if (isRadarr) {
-      var movie = row.movie && typeof row.movie === "object" ? row.movie : {}
-      title = String(movie.title || row.sourceTitle || "")
-    } else {
-      var show = arrEpisodeShow(row)
-      title = show.title || String(row.sourceTitle || "")
-    }
     out.push({
       id: String(row.id || ""),
-      title: title,
+      title: arrHistoryTitle(row, kind),
       status: status,
       kind: kindOf(kind)
     })
@@ -1032,44 +1007,36 @@ function qbitHashesBody(hashes) {
 }
 
 function sabApiUrl(base) {
-  return normalizeUrl(base) + "/api"
+  return apiUrl(base, "/api")
 }
 
 function qbitLoginUrl(base) {
-  return normalizeUrl(base) + "/api/v2/auth/login"
+  return apiUrl(base, "/api/v2/auth/login")
 }
 
 function qbitTorrentsUrl(base, page, pageSize) {
-  return normalizeUrl(base) + "/api/v2/torrents/info?limit=" + clampPageSize(pageSize) +
-    "&offset=" + listOffset(page, pageSize) + "&sort=dlspeed&reverse=true"
+  return apiUrl(base, "/api/v2/torrents/info?limit=" + clampPageSize(pageSize) +
+    "&offset=" + listOffset(page, pageSize) + "&sort=dlspeed&reverse=true")
 }
 
 function qbitTransferUrl(base) {
-  return normalizeUrl(base) + "/api/v2/transfer/info"
+  return apiUrl(base, "/api/v2/transfer/info")
 }
 
 function qbitPauseUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/pause"
+  return apiUrl(base, "/api/v2/torrents/pause")
 }
 
 function qbitResumeUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/resume"
+  return apiUrl(base, "/api/v2/torrents/resume")
 }
 
 function qbitStopUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/stop"
+  return apiUrl(base, "/api/v2/torrents/stop")
 }
 
 function qbitStartUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/start"
-}
-
-function qbitPauseAllUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/pause"
-}
-
-function qbitResumeAllUrl(base) {
-  return normalizeUrl(base) + "/api/v2/torrents/resume"
+  return apiUrl(base, "/api/v2/torrents/start")
 }
 
 function headerPlex(token) {
@@ -1092,19 +1059,19 @@ function headerIsConfig(headerText) {
 }
 
 function plexIdentityUrl(base) {
-  return normalizeUrl(base) + "/identity"
+  return apiUrl(base, "/identity")
 }
 
 function plexSessionsUrl(base) {
-  return normalizeUrl(base) + "/status/sessions"
+  return apiUrl(base, "/status/sessions")
 }
 
 function plexOnDeckUrl(base) {
-  return normalizeUrl(base) + "/library/onDeck"
+  return apiUrl(base, "/library/onDeck")
 }
 
 function plexRecentlyAddedUrl(base, pageSize) {
-  return normalizeUrl(base) + "/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=" + clampPageSize(pageSize)
+  return apiUrl(base, "/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=" + clampPageSize(pageSize))
 }
 
 function plexArtUrl(base, path) {
@@ -1121,11 +1088,29 @@ function plexArtUrl(base, path) {
   return url + (url.indexOf("?") === -1 ? "?" : "&") + "width=720&height=405&minSize=1"
 }
 
+function cacheSafe(value) {
+  return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
+}
+
+function artCachePath(cacheDir, serviceId, itemId, kind) {
+  return String(cacheDir || "") + "/" + cacheSafe(serviceId) + "-" + cacheSafe(itemId) + "-" + String(kind || "poster") + "-hd.jpg"
+}
+
+function posterCachePath(cacheDir, serviceId, itemId) {
+  return artCachePath(cacheDir, serviceId, itemId, "poster")
+}
+
+function fanartCachePath(cacheDir, serviceId, itemId) {
+  return artCachePath(cacheDir, serviceId, itemId, "fanart")
+}
+
 function plexCachePath(cacheDir, serviceId, itemId) {
-  var safe = function(value) {
-    return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
-  }
-  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-plex-hd.jpg"
+  return artCachePath(cacheDir, serviceId, itemId, "plex")
+}
+
+function fileUrl(path, rev) {
+  if (!path) return ""
+  return "file://" + path + "?" + (rev || 0)
 }
 
 function plexRecords(raw) {
@@ -1744,42 +1729,37 @@ function shouldNotify(event, service, seen) {
   return true
 }
 
-function toastTitle(event) {
+function toastParts(event) {
   var row = event || {}
-  if (row.type === "service-down") return row.serviceName + " is down"
-  if (row.type === "service-up") return row.serviceName + " is back"
-  if (row.type === "grabbed") return row.serviceName + " grabbed"
-  if (row.type === "library-added") return row.serviceName + " added"
-  if (row.type === "import") return row.serviceName + " imported"
-  if (row.type === "download-finished") return row.serviceName + " finished"
-  if (row.type === "download-failed") return row.serviceName + " failed"
-  return row.serviceName || "omARR"
-}
-
-function toastBody(event) {
-  return String((event && event.body) || "")
-}
-
-function toastGlyph(event) {
-  var type = event && event.type
-  if (type === "service-down") return "󰀦"
-  if (type === "service-up") return "󰗠"
-  if (type === "grabbed" || type === "library-added") return "󰑓"
-  if (type === "import") return "󰋚"
-  if (type === "download-failed") return "󰅙"
-  return "󰕙"
+  var type = row.type
+  var title = row.serviceName || "omARR"
+  if (type === "service-down") title = row.serviceName + " is down"
+  else if (type === "service-up") title = row.serviceName + " is back"
+  else if (type === "grabbed") title = row.serviceName + " grabbed"
+  else if (type === "library-added") title = row.serviceName + " added"
+  else if (type === "import") title = row.serviceName + " imported"
+  else if (type === "download-finished") title = row.serviceName + " finished"
+  else if (type === "download-failed") title = row.serviceName + " failed"
+  var glyph = "󰕙"
+  if (type === "service-down") glyph = "󰀦"
+  else if (type === "service-up") glyph = "󰗠"
+  else if (type === "grabbed" || type === "library-added") glyph = "󰑓"
+  else if (type === "import") glyph = "󰋚"
+  else if (type === "download-failed") glyph = "󰅙"
+  return { title: title, body: String(row.body || ""), glyph: glyph }
 }
 
 function toastCommand(event) {
   var row = event || {}
+  var parts = toastParts(row)
   var urgent = row.type === "service-down" || row.type === "download-failed"
   return [
     "omarchy-notification-send",
     "--app-name", "omARR",
     "-u", urgent ? "normal" : "low",
-    "-g", toastGlyph(row),
-    toastTitle(row),
-    toastBody(row),
+    "-g", parts.glyph,
+    parts.title,
+    parts.body,
     "--exec",
     "omarchy-shell",
     "shell",
@@ -1789,8 +1769,25 @@ function toastCommand(event) {
   ]
 }
 
+function scanHitsForPort(port) {
+  var n = parseInt(port, 10)
+  var out = []
+  for (var i = 0; i < SCAN_SERVICES.length; i++) {
+    if (SCAN_SERVICES[i].port === n) out.push(SCAN_SERVICES[i])
+  }
+  return out
+}
+
 function scanTargets() {
-  return SCAN_TARGETS.slice()
+  var seen = {}
+  var out = []
+  for (var i = 0; i < SCAN_SERVICES.length; i++) {
+    var t = SCAN_SERVICES[i]
+    if (seen[t.port]) continue
+    seen[t.port] = true
+    out.push({ kind: t.kind, port: t.port, name: t.name })
+  }
+  return out
 }
 
 function scanUrl(host, port) {
@@ -1798,22 +1795,17 @@ function scanUrl(host, port) {
 }
 
 function kindFromPort(port) {
-  var key = String(parseInt(port, 10))
-  return PORT_KINDS[key] || "generic"
+  var hits = scanHitsForPort(port)
+  if (hits.length === 1) return hits[0].kind
+  return "generic"
 }
 
-function posterCachePath(cacheDir, serviceId, itemId) {
-  var safe = function(value) {
-    return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
-  }
-  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-poster-hd.jpg"
-}
-
-function fanartCachePath(cacheDir, serviceId, itemId) {
-  var safe = function(value) {
-    return String(value || "").replace(/[^A-Za-z0-9._-]/g, "_")
-  }
-  return String(cacheDir || "") + "/" + safe(serviceId) + "-" + safe(itemId) + "-fanart-hd.jpg"
+function fleetOrderKey(list) {
+  var rows = Array.isArray(list) ? list : []
+  var out = []
+  for (var i = 0; i < rows.length; i++)
+    out.push(String(rows[i].id) + ":" + String(rows[i].order == null ? i : rows[i].order))
+  return out.join(",")
 }
 
 function splitHttp(text) {
@@ -1919,8 +1911,6 @@ if (typeof module !== "undefined" && module.exports) {
     qbitResumeUrl: qbitResumeUrl,
     qbitStopUrl: qbitStopUrl,
     qbitStartUrl: qbitStartUrl,
-    qbitPauseAllUrl: qbitPauseAllUrl,
-    qbitResumeAllUrl: qbitResumeAllUrl,
     headerPlex: headerPlex,
     curlHeaderConfig: curlHeaderConfig,
     headerIsConfig: headerIsConfig,
@@ -1929,6 +1919,8 @@ if (typeof module !== "undefined" && module.exports) {
     plexOnDeckUrl: plexOnDeckUrl,
     plexRecentlyAddedUrl: plexRecentlyAddedUrl,
     plexArtUrl: plexArtUrl,
+    posterCachePath: posterCachePath,
+    fanartCachePath: fanartCachePath,
     plexCachePath: plexCachePath,
     parsePlexIdentity: parsePlexIdentity,
     parsePlexLibrary: parsePlexLibrary,
@@ -1956,15 +1948,14 @@ if (typeof module !== "undefined" && module.exports) {
     barStatusText: barStatusText,
     eventsFromPoll: eventsFromPoll,
     shouldNotify: shouldNotify,
-    toastTitle: toastTitle,
-    toastBody: toastBody,
-    toastGlyph: toastGlyph,
+    toastParts: toastParts,
     toastCommand: toastCommand,
     scanTargets: scanTargets,
+    scanHitsForPort: scanHitsForPort,
     scanUrl: scanUrl,
     kindFromPort: kindFromPort,
-    posterCachePath: posterCachePath,
-    fanartCachePath: fanartCachePath,
+    fleetOrderKey: fleetOrderKey,
+    fileUrl: fileUrl,
     splitHttp: splitHttp,
     snapshotById: snapshotById
   }

@@ -13,8 +13,7 @@ Panel {
   property var hostWidget: null
   property var service: null
   property bool showSettings: false
-  property bool pendingAdd: false
-  property bool pendingFleet: false
+  property string pendingSettings: ""
   property int selectedIndex: -1
   property string detailId: ""
   property string homeTab: "ondeck"
@@ -26,13 +25,7 @@ Panel {
   readonly property color dim: Qt.darker(contentForeground, 1.4)
   readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
-  readonly property string fleetKey: {
-    var list = root.snapshots
-    var out = []
-    for (var i = 0; i < list.length; i++)
-      out.push(String(list[i].id) + ":" + String(list[i].order || i))
-    return out.join(",")
-  }
+  readonly property string fleetKey: Model.fleetOrderKey(root.snapshots)
   readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0, showQueue: false, showCalendar: false })
   readonly property var calendarGroups: Model.groupedCalendar(service && service.calendarFeed ? service.calendarFeed : [])
   readonly property var homeTabModel: {
@@ -132,22 +125,20 @@ Panel {
   }
 
   function openAddService() {
-    root.pendingAdd = true
-    root.pendingFleet = false
+    root.pendingSettings = "add"
     root.showSettings = true
     if (settingsLoader.item) {
       settingsLoader.item.startAdd()
-      root.pendingAdd = false
+      root.pendingSettings = ""
     }
   }
 
   function openFleetSettings() {
-    root.pendingFleet = true
-    root.pendingAdd = false
+    root.pendingSettings = "fleet"
     root.showSettings = true
     if (settingsLoader.item) {
       settingsLoader.item.showFleet()
-      root.pendingFleet = false
+      root.pendingSettings = ""
     }
   }
 
@@ -199,21 +190,21 @@ Panel {
     if (!root.service || !posterId) return ""
     var path = root.service.posterPath(serviceId, posterId)
     var rev = root.service.artRev
-    return "file://" + path + "?" + ((rev && rev[path]) || 0)
+    return Model.fileUrl(path, rev && rev[path])
   }
 
   function fanartSource(serviceId, posterId) {
     if (!root.service || !posterId) return ""
     var path = root.service.fanartPath(serviceId, posterId)
     var rev = root.service.artRev
-    return "file://" + path + "?" + ((rev && rev[path]) || 0)
+    return Model.fileUrl(path, rev && rev[path])
   }
 
   function plexSource(serviceId, itemId) {
     if (!root.service || !itemId) return ""
     var path = root.service.plexPath(serviceId, itemId)
     var rev = root.service.artRev
-    return "file://" + path + "?" + ((rev && rev[path]) || 0)
+    return Model.fileUrl(path, rev && rev[path])
   }
 
   function wheelDelta(event) {
@@ -419,12 +410,12 @@ Panel {
                 visible: active
                 sourceComponent: settingsComp
                 onLoaded: {
-                  if (root.pendingAdd) {
+                  if (root.pendingSettings === "add") {
                     item.startAdd()
-                    root.pendingAdd = false
-                  } else if (root.pendingFleet) {
+                    root.pendingSettings = ""
+                  } else if (root.pendingSettings === "fleet") {
                     item.showFleet()
-                    root.pendingFleet = false
+                    root.pendingSettings = ""
                   }
                 }
               }

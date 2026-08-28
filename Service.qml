@@ -60,6 +60,14 @@ Item {
     return cacheDir + "/qbit-" + String(id || "").replace(/[^A-Za-z0-9._-]/g, "_") + ".cookies"
   }
 
+  function serviceById(id) {
+    var key = String(id || "")
+    for (var i = 0; i < root.services.length; i++) {
+      if (root.services[i].id === key) return root.services[i]
+    }
+    return null
+  }
+
   function persistSettings(values) {
     var current = Model.normalizeSettings(root.pluginSettings)
     var extra = values && typeof values === "object" ? values : {}
@@ -191,6 +199,25 @@ Item {
     return true
   }
 
+  function commitIdentity(service, snap, statusCode, info) {
+    var decision = Model.decideHealth(
+      root.snapshotFor(service).health,
+      statusCode,
+      root.healthMisses[service.id] || 0
+    )
+    root.setHealthMisses(service.id, decision.misses)
+    if (!decision.commit) return
+    if (statusCode < 200 || statusCode >= 400) {
+      root.commitSnapshot(Model.applyHttpHealth(snap, statusCode), service)
+      return
+    }
+    var next = Model.applyHttpHealth(snap, statusCode)
+    var row = info && typeof info === "object" ? info : {}
+    next.version = String(row.version || "")
+    next.statusText = String(row.statusText || next.version || "Reachable")
+    root.commitSnapshot(next, service)
+  }
+
   function runCurl(req) {
     if (!req || !Model.isHttpUrl(req.url)) {
       Qt.callLater(root.pump)
@@ -243,10 +270,7 @@ Item {
   }
 
   function turnQueuePage(serviceId, delta) {
-    var service = null
-    for (var i = 0; i < root.services.length; i++) {
-      if (root.services[i].id === serviceId) service = root.services[i]
-    }
+    var service = root.serviceById(serviceId)
     if (!service) return
     var current = root.detailQueueId === serviceId ? root.detailQueuePage : 1
     var page = Model.listPage(current + (parseInt(delta, 10) || 0))
@@ -358,10 +382,7 @@ Item {
 
   function ensureProgressArt(job) {
     if (!job || !job.posterId || !job.posterServiceId) return
-    var service = null
-    for (var i = 0; i < root.services.length; i++) {
-      if (root.services[i].id === job.posterServiceId) service = root.services[i]
-    }
+    var service = root.serviceById(job.posterServiceId)
     if (!service || (service.kind !== "sonarr" && service.kind !== "radarr")) return
     var auth = root.cred(service.id)
     var header = auth.apiKey ? Model.headerApiKey(auth.apiKey) : ""
@@ -401,10 +422,7 @@ Item {
       root.handleScan(req, parsed.status)
       return
     }
-    var service = null
-    for (var i = 0; i < root.services.length; i++) {
-      if (root.services[i].id === req.serviceId) service = root.services[i]
-    }
+    var service = root.serviceById(req.serviceId)
     if (!service) return
     if (req.kind === "poster") {
       root.finishArt(req.outputPath, parsed.status >= 200 && parsed.status < 400)
@@ -416,22 +434,11 @@ Item {
       return
     }
     if (req.kind === "arr-status") {
-      var arrDecision = Model.decideHealth(
-        root.snapshotFor(service).health,
-        parsed.status,
-        root.healthMisses[service.id] || 0
-      )
-      root.setHealthMisses(service.id, arrDecision.misses)
-      if (!arrDecision.commit) return
-      if (parsed.status < 200 || parsed.status >= 400) {
-        root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
-        return
-      }
       var status = Model.parseArrStatus(parsed.body)
-      snap = Model.applyHttpHealth(snap, parsed.status)
-      snap.version = status.version
-      snap.statusText = status.appName ? status.appName + " " + status.version : status.version
-      root.commitSnapshot(snap, service)
+      root.commitIdentity(service, snap, parsed.status, {
+        version: status.version,
+        statusText: status.appName ? status.appName + " " + status.version : status.version
+      })
       return
     }
     if (req.kind === "arr-queue") {
@@ -549,22 +556,11 @@ Item {
       return
     }
     if (req.kind === "plex-identity") {
-      var plexDecision = Model.decideHealth(
-        root.snapshotFor(service).health,
-        parsed.status,
-        root.healthMisses[service.id] || 0
-      )
-      root.setHealthMisses(service.id, plexDecision.misses)
-      if (!plexDecision.commit) return
-      if (parsed.status < 200 || parsed.status >= 400) {
-        root.commitSnapshot(Model.applyHttpHealth(snap, parsed.status), service)
-        return
-      }
       var ident = Model.parsePlexIdentity(parsed.body)
-      snap = Model.applyHttpHealth(snap, parsed.status)
-      snap.version = ident.version
-      snap.statusText = ident.version || "Reachable"
-      root.commitSnapshot(snap, service)
+      root.commitIdentity(service, snap, parsed.status, {
+        version: ident.version,
+        statusText: ident.version || "Reachable"
+      })
       return
     }
     if (req.kind === "plex-sessions") {
@@ -600,27 +596,21 @@ Item {
       return
     }
     if (!req || !Model.isHealthKind(req.kind) || req.page > 1) return
-    var service = null
-    for (var i = 0; i < root.services.length; i++) {
-      if (root.services[i].id === req.serviceId) service = root.services[i]
-    }
+    var service = root.serviceById(req.serviceId)
     if (!service) return
     root.commitHealth(service, root.cloneSnap(root.snapshotFor(service)), 0)
   }
 
   function handleScan(req, status) {
     if (!(status >= 200 && status < 400)) return
+    var found = Model.scanHitsForPort(req.port)
     var hits = []
-    if (req.port === 8080) {
-      hits.push({ kind: "sabnzbd", name: "SABnzbd", url: req.url, port: 8080 })
-      hits.push({ kind: "qbittorrent", name: "qBittorrent", url: req.url, port: 8080 })
+    if (!found.length) {
+      hits.push({ kind: "generic", name: req.name, url: req.url, port: req.port })
     } else {
-      hits.push({
-        kind: Model.kindFromPort(req.port),
-        name: req.name,
-        url: req.url,
-        port: req.port
-      })
+      for (var h = 0; h < found.length; h++) {
+        hits.push({ kind: found[h].kind, name: found[h].name, url: req.url, port: req.port })
+      }
     }
     var existing = root.scanResults.slice()
     for (var i = 0; i < hits.length; i++) {
@@ -838,12 +828,9 @@ Item {
   function startScan() {
     root.scanning = true
     root.scanResults = []
-    var seenPorts = {}
     var targets = Model.scanTargets()
     for (var i = 0; i < targets.length; i++) {
       var t = targets[i]
-      if (seenPorts[t.port]) continue
-      seenPorts[t.port] = true
       root.enqueue({
         kind: "scan",
         url: Model.scanUrl("127.0.0.1", t.port),
@@ -869,10 +856,7 @@ Item {
   }
 
   function runControl(serviceId, action, itemId) {
-    var service = null
-    for (var i = 0; i < root.services.length; i++) {
-      if (root.services[i].id === serviceId) service = root.services[i]
-    }
+    var service = root.serviceById(serviceId)
     if (!service) return
     var auth = root.cred(service.id)
     if (service.kind === "sabnzbd") {
