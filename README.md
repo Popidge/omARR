@@ -4,6 +4,8 @@ The Omarchy Arr stack desktop plugin for homelabs.
 
 omARR is an [Omarchy](https://omarchy.org/) bar plugin for homelab people who already run Sonarr, Radarr, Plex, SABnzbd, or qBittorrent. Click the skull icon to see your *arr fleet on the left and a live content overview on the right. Now playing, on deck, recently added, and calendar. Add custom links and use as a homelab launcher, all without leaving the Omarchy desktop.
 
+![omARR panel](docs/panel.png)
+
 **Top features**
 
 - Bar badge for active downloads and outages
@@ -17,8 +19,6 @@ omARR is an [Omarchy](https://omarchy.org/) bar plugin for homelab people who al
 - Deeper support for more services coming soon
 
 Plugins run unsandboxed inside `omarchy-shell` with your user permissions. Read the code before you enable it.
-
-![omARR panel](docs/panel.png)
 
 ## Install
 
