@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "luccast",
   "license": "MIT",
-  "description": "An overview panel for locally hosted services, with live Sonarr, Radarr, Plex, SABnzbd, and qBittorrent controls.",
+  "description": "The Omarchy Arr stack desktop panel for locally hosted services. With live notifications and controls for Sonarr, Radarr, Plex, SABnzbd, qBittorrent, and more.",
   "kinds": [
     "service",
     "bar-widget"
@@ -17,7 +17,7 @@
   },
   "barWidget": {
     "displayName": "omARR",
-    "description": "Homelab command center for the bar — health, queues, calendar, and downloads",
+    "description": "Arr stack command center for the Omarchy bar — health, queues, calendar, and downloads",
     "category": "Info",
     "allowMultiple": false,
     "defaultSection": "right"
