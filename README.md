@@ -25,7 +25,7 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 | Action | Result |
 | --- | --- |
 | Click the bar icon | Open or close the panel |
-| `j` / `k` | Move through Overview and the fleet |
+| `j` / `k` | Move through the fleet |
 | Enter | Open the selected service in the browser |
 | Space | Open that service’s detail, or return to Overview |
 | `s` | Settings |

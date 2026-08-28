@@ -45,7 +45,6 @@ Panel {
   readonly property bool compact: service && service.density === "compact"
   readonly property int rowPad: compact ? Style.space(4) : Style.space(8)
   readonly property int fleetWidth: Style.space(152)
-  readonly property bool hasDownloader: Model.anyDownloader(snapshots)
   readonly property var selectedSnap: selectedIndex >= 0 && selectedIndex < snapshots.length ? snapshots[selectedIndex] : null
   readonly property var detailSnap: Model.snapshotById(snapshots, detailId)
   readonly property bool settingsBlocked: settingsLoader.item ? settingsLoader.item.editorOpen === true : false
@@ -315,21 +314,14 @@ Panel {
               spacing: Style.space(2)
 
               PanelActionButton {
-                visible: root.hasDownloader && !root.showSettings
-                iconText: "󰏤"
-                tooltipText: "Pause all downloads"
-                foreground: root.contentForeground
+                iconText: "󰋜"
+                tooltipText: "Overview"
+                foreground: !root.showSettings && root.detailId === "" ? Color.accent : root.contentForeground
                 fontFamily: root.contentFontFamily
-                onClicked: if (root.service) root.service.pauseAll()
-              }
-
-              PanelActionButton {
-                visible: root.hasDownloader && !root.showSettings
-                iconText: "󰐊"
-                tooltipText: "Resume all downloads"
-                foreground: root.contentForeground
-                fontFamily: root.contentFontFamily
-                onClicked: if (root.service) root.service.resumeAll()
+                onClicked: {
+                  root.showSettings = false
+                  root.goOverview()
+                }
               }
 
               PanelActionButton {
@@ -411,71 +403,6 @@ Panel {
               height: parent.height
               clip: true
               spacing: Style.space(4)
-
-              CursorSurface {
-                id: overviewRow
-                width: parent.width
-                implicitHeight: overviewCol.implicitHeight + Style.space(6)
-                hasCursor: root.selectedIndex < 0
-                current: root.detailId === ""
-                foreground: root.contentForeground
-                accent: Color.accent
-                opacity: overviewHover.containsMouse || overviewRow.hasCursor || overviewRow.current ? 1 : 0.8
-
-                Behavior on opacity {
-                  NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-                }
-
-                MouseArea {
-                  id: overviewHover
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.goOverview()
-                }
-
-                Row {
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.margins: Style.space(4)
-                  spacing: Style.space(6)
-
-                  OmarrIcon {
-                    id: overviewIcon
-                    iconSize: Style.space(16)
-                    color: root.contentForeground
-                    anchors.verticalCenter: parent.verticalCenter
-                  }
-
-                  Column {
-                    id: overviewCol
-                    width: parent.width - overviewIcon.width - parent.spacing
-                    spacing: Style.space(1)
-
-                    Text {
-                      width: parent.width
-                      text: "Overview"
-                      color: root.contentForeground
-                      font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.bodySmall
-                      font.bold: true
-                      elide: Text.ElideRight
-                      textFormat: Text.PlainText
-                    }
-
-                    Text {
-                      width: parent.width
-                      text: "All services"
-                      color: root.dim
-                      font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.caption
-                      elide: Text.ElideRight
-                      textFormat: Text.PlainText
-                    }
-                  }
-                }
-              }
 
               PanelSectionHeader {
                 text: "FLEET"
