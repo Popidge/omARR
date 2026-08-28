@@ -14,6 +14,13 @@ Column {
 
   readonly property color dim: Qt.darker(foreground, 1.4)
   readonly property var services: service && service.services ? service.services : []
+  readonly property string fleetKey: {
+    var list = root.services
+    var out = []
+    for (var i = 0; i < list.length; i++)
+      out.push(String(list[i].id) + ":" + String(list[i].order))
+    return out.join(",")
+  }
   readonly property var scanResults: service && service.scanResults ? service.scanResults : []
   readonly property bool scanning: service ? service.scanning === true : false
   readonly property bool editorOpen: kindBox.popupOpen || nameField.activeFocus || urlField.activeFocus
@@ -403,7 +410,10 @@ Column {
     }
 
     Repeater {
-      model: Model.groupedServices(root.services)
+      model: {
+        var _ = root.fleetKey
+        return Model.groupedServices(root.services)
+      }
 
       Column {
         required property var modelData
@@ -436,6 +446,7 @@ Column {
 
             MouseArea {
               id: svcMouse
+              z: -1
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor

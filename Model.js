@@ -460,6 +460,8 @@ function applyServiceMeta(snapshot, service) {
   if (svc.name !== undefined && svc.name !== null) copy.name = String(svc.name)
   if (svc.url !== undefined && svc.url !== null) copy.url = String(svc.url)
   if (Object.prototype.hasOwnProperty.call(svc, "group")) copy.group = normalizeGroup(svc.group, "")
+  var order = parseInt(svc.order, 10)
+  if (!isNaN(order)) copy.order = order
   copy.showQueue = svc.showQueue === true
   copy.showCalendar = svc.showCalendar === true
   return copy

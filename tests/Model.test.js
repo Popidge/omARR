@@ -182,6 +182,22 @@ checkEqual(synced.group, "Media", "meta sync group")
 checkEqual(synced.name, "Sonarr LQ", "meta sync name")
 checkEqual(synced.health, "up", "meta sync keeps health")
 
+var withOrder = Model.applyServiceMeta(Model.emptySnapshot({ id: "a" }), {
+  id: "a", kind: "sonarr", name: "Later", group: "Media", order: 2
+})
+checkEqual(withOrder.order, 2, "snapshot keeps service order")
+var unorderedSnaps = [
+  Model.applyServiceMeta(Model.emptySnapshot({ id: "a" }), {
+    id: "a", kind: "sonarr", name: "First", group: "Media", order: 1
+  }),
+  Model.applyServiceMeta(Model.emptySnapshot({ id: "b" }), {
+    id: "b", kind: "sonarr", name: "Second", group: "Media", order: 0
+  })
+]
+var fleet = Model.groupedServices(unorderedSnaps)
+checkEqual(fleet[0].services[0].id, "b", "fleet list sorts by service order")
+checkEqual(fleet[0].services[1].id, "a", "fleet list follows moved order")
+
 var creds = Model.parseCredentials('{"svc-1":{"apiKey":"abc"}}')
 checkEqual(Model.credentialFor(creds, "svc-1").apiKey, "abc", "cred read")
 var creds2 = Model.setCredential(creds, "svc-1", { username: "admin" })

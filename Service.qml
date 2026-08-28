@@ -42,7 +42,7 @@ Item {
   readonly property string seenPath: stateDir + "/seen.json"
   readonly property string headerPath: cacheDir + "/header.txt"
   readonly property string bodyPath: cacheDir + "/body.txt"
-  readonly property var pluginSettings: Model.pluginSettings(shell ? shell.shellConfig : null, Model.PLUGIN_ID)
+  property var pluginSettings: Model.pluginSettings(null, Model.PLUGIN_ID)
   readonly property var services: pluginSettings.services
   readonly property int pollSeconds: pluginSettings.pollSeconds
   readonly property int pageSize: pluginSettings.pageSize
@@ -65,9 +65,11 @@ Item {
     var current = Model.normalizeSettings(root.pluginSettings)
     var extra = values && typeof values === "object" ? values : {}
     for (var key in extra) current[key] = extra[key]
+    current = Model.normalizeSettings(current)
     var payload = Model.settingsPayload(current)
     if (root.shell && typeof root.shell.updateEntryInline === "function")
       root.shell.updateEntryInline(Model.PLUGIN_ID, payload)
+    root.pluginSettings = current
   }
 
   function persistCredentials() {
@@ -1077,6 +1079,7 @@ Item {
   }
 
   onServicesChanged: root.rebuildSnapshots()
+  onShellChanged: root.pluginSettings = Model.pluginSettings(root.shell ? root.shell.shellConfig : null, Model.PLUGIN_ID)
   onPanelOpenChanged: if (root.panelOpen) {
     root.clearUnread()
     root.forcePoll()

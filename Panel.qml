@@ -26,6 +26,13 @@ Panel {
   readonly property color dim: Qt.darker(contentForeground, 1.4)
   readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
   readonly property var snapshots: service && service.snapshots ? service.snapshots : []
+  readonly property string fleetKey: {
+    var list = root.snapshots
+    var out = []
+    for (var i = 0; i < list.length; i++)
+      out.push(String(list[i].id) + ":" + String(list[i].order || i))
+    return out.join(",")
+  }
   readonly property var nowFeed: service && service.nowFeed ? service.nowFeed : ({ downloads: [], calendar: [], warnings: [], sessions: [], onDeck: [], recent: [], downloadingCount: 0, downCount: 0, showQueue: false, showCalendar: false })
   readonly property var calendarGroups: Model.groupedCalendar(service && service.calendarFeed ? service.calendarFeed : [])
   readonly property var homeTabModel: {
@@ -463,7 +470,10 @@ Panel {
               }
 
               Repeater {
-                model: Model.groupedServices(root.snapshots)
+                model: {
+                  var _ = root.fleetKey
+                  return Model.groupedServices(root.snapshots)
+                }
 
                 Column {
                   required property var modelData
