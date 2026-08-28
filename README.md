@@ -33,6 +33,8 @@ Update later with `omarchy plugin update io.github.luccast.omarr`.
 
 Toasts for grabs, imports, Plex library adds, finished or failed downloads, and services going down or coming back. Click a toast to summon the panel.
 
+While SABnzbd or qBittorrent is actually downloading, a progress card stays on screen (progress bar, title, client icon, poster when *arr has one). Seeding torrents are ignored. Dismiss it until that job finishes; turn the card off in settings.
+
 ## Settings
 
 First open is an empty overview. Add a service by kind, or **Scan local ports** to probe this machine (8989, 7878, 8080, 8096, 32400, 8123, 9696, 5055).
@@ -48,7 +50,7 @@ First open is an empty overview. Add a service by kind, or **Scan local ports** 
 
 Overview shows a service’s queue or *arr calendar only when that service has the matching toggle on. SABnzbd and qBittorrent queues default on; Sonarr and Radarr queues default off.
 
-Layout (names, URLs, groups, order, notification flags, poll interval, queue page size, density) is stored in `~/.config/omarchy/shell.json`. API keys, Plex tokens, and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
+Layout (names, URLs, groups, order, notification flags, poll interval, queue page size, density, download progress card) is stored in `~/.config/omarchy/shell.json`. API keys, Plex tokens, and passwords are stored only in `~/.local/state/omarchy/omarr/credentials.json` (`0600`).
 
 ## Icons
 
@@ -106,5 +108,5 @@ omarchy plugin remove io.github.luccast.omarr
 ```sh
 node tests/Model.test.js
 omarchy plugin validate .
-qmllint -I "$OMARCHY_PATH/shell" BarWidget.qml Panel.qml Service.qml SettingsView.qml OmarrIcon.qml ServiceIcon.qml CalendarCard.qml
+qmllint -I "$OMARCHY_PATH/shell" BarWidget.qml Panel.qml Service.qml SettingsView.qml OmarrIcon.qml ServiceIcon.qml CalendarCard.qml DownloadToast.qml
 ```

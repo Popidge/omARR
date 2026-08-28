@@ -39,6 +39,7 @@ check(Array.isArray(empty.services) && empty.services.length === 0, "default ser
 checkEqual(empty.pollSeconds, 30, "default poll")
 checkEqual(empty.pageSize, 20, "default page size")
 checkEqual(empty.density, "comfortable", "default density")
+check(empty.showProgressToast === true, "progress toast on")
 check(empty.showCalendar === undefined && empty.showQueue === undefined, "no global panes")
 
 var fromBar = Model.pluginSettings({
@@ -79,6 +80,10 @@ check(Model.normalizeService({ kind: "sonarr", showQueue: true }).showQueue === 
 check(!("showQueue" in Model.settingsPayload({})), "payload drops global queue")
 check(!("showCalendar" in Model.settingsPayload({})), "payload drops global calendar")
 check(!("showArrQueue" in Model.settingsPayload({})), "payload drops global arr queue")
+checkEqual(Model.normalizeSettings({}).showProgressToast, true, "progress toast default")
+checkEqual(Model.normalizeSettings({ showProgressToast: false }).showProgressToast, false, "progress toast off")
+checkEqual(Model.settingsPayload({}).showProgressToast, true, "payload keeps progress toast")
+checkEqual(Model.settingsPayload({ showProgressToast: false }).showProgressToast, false, "payload progress toast off")
 
 checkEqual(Model.pluginSettings({}).services.length, 0, "missing config")
 checkEqual(Model.pluginSettings({
@@ -814,6 +819,106 @@ checkEqual(keep[0].title, "New", "reuse patches fields")
 checkEqual(keep[0].progress, 0.8, "reuse patches progress")
 var swapped = Model.reuseFeedList(keep, [{ id: "b", title: "Other" }])
 check(swapped !== keep, "new ids replace list")
+
+function sabProgressSnap(queue, extra) {
+  var snap = {
+    id: "sab",
+    kind: "sabnzbd",
+    name: "SABnzbd",
+    paused: false,
+    speed: 1024 * 1024,
+    queue: queue
+  }
+  if (extra) for (var k in extra) snap[k] = extra[k]
+  return snap
+}
+
+function qbitItem(id, title, status, progress, dlspeed) {
+  return {
+    id: id,
+    title: title,
+    status: status,
+    progress: progress,
+    dlspeed: dlspeed,
+    timeleft: "10m",
+    kind: "qbittorrent"
+  }
+}
+
+check(Model.progressToast([]) === null, "progress toast empty")
+check(Model.progressToast([{
+  id: "son", kind: "sonarr", name: "Sonarr",
+  queue: [{ id: "1", title: "Show", status: "downloading", progress: 0.4, kind: "sonarr" }]
+}]) === null, "progress toast skips arr")
+
+var sabJob = Model.progressToast([sabProgressSnap([{
+  id: "nzo1", title: "Show.S01E01", status: "downloading", progress: 0.4, timeleft: "00:10:00", kind: "sabnzbd"
+}])])
+check(sabJob && sabJob.key === "sab:nzo1", "progress toast sab key")
+checkEqual(sabJob.title, "Show.S01E01", "progress toast sab title")
+checkEqual(sabJob.kind, "sabnzbd", "progress toast sab kind")
+checkEqual(sabJob.progress, 0.4, "progress toast sab progress")
+checkEqual(sabJob.speed, 1024 * 1024, "progress toast sab speed")
+
+check(Model.progressToast([sabProgressSnap([{
+  id: "nzo1", title: "Show.S01E01", status: "downloading", progress: 0.4, kind: "sabnzbd"
+}], { paused: true })]) === null, "progress toast skips paused sab")
+
+check(Model.progressToast([sabProgressSnap([{
+  id: "nzo1", title: "Queued", status: "queued", progress: 0, kind: "sabnzbd"
+}])]) === null, "progress toast skips queued sab")
+
+var qbitSnap = {
+  id: "qbit",
+  kind: "qbittorrent",
+  name: "qBittorrent",
+  queue: [
+    qbitItem("seed", "Old Movie", "uploading", 1, 0),
+    qbitItem("slow", "Show A", "downloading", 0.2, 1000),
+    qbitItem("fast", "Show B", "downloading", 0.8, 9000)
+  ]
+}
+var qbitJob = Model.progressToast([qbitSnap])
+check(qbitJob && qbitJob.key === "qbit:fast", "progress toast picks fastest")
+checkEqual(qbitJob.title, "Show B", "progress toast fastest title")
+
+check(Model.progressToast([{
+  id: "qbit", kind: "qbittorrent", name: "qBittorrent",
+  queue: [
+    qbitItem("seed", "Seeded", "uploading", 1, 0),
+    qbitItem("done", "Done", "stalledup", 1, 0),
+    qbitItem("full", "Finished", "downloading", 1, 5000)
+  ]
+}]) === null, "progress toast skips seeding")
+
+var nextJob = Model.progressToast([qbitSnap], "qbit:fast")
+check(nextJob && nextJob.key === "qbit:slow", "progress toast skip dismissed")
+check(Model.progressToastStale("qbit:gone", [qbitSnap]) === true, "stale dismissed key")
+check(Model.progressToastStale("qbit:fast", [qbitSnap]) === false, "active dismissed key stays")
+
+var posted = Model.progressToast([
+  sabProgressSnap([{
+    id: "nzo1", title: "Show.S01E01", status: "downloading", progress: 0.4, kind: "sabnzbd"
+  }]),
+  {
+    id: "son", kind: "sonarr", name: "Sonarr",
+    queue: [{ id: "9", title: "Show.S01E01", posterId: "12", downloadId: "abc", kind: "sonarr" }]
+  }
+])
+checkEqual(posted.posterServiceId, "son", "progress toast poster service")
+checkEqual(posted.posterId, "12", "progress toast poster id")
+
+var hashed = Model.progressToast([
+  {
+    id: "qbit", kind: "qbittorrent", name: "qBittorrent",
+    queue: [qbitItem("deadbeef", "Movie.2024", "downloading", 0.5, 2000)]
+  },
+  {
+    id: "rad", kind: "radarr", name: "Radarr",
+    queue: [{ id: "3", title: "Other", posterId: "44", downloadId: "deadbeef", kind: "radarr" }]
+  }
+])
+checkEqual(hashed.posterId, "44", "progress toast matches torrent hash")
 
 if (fails) {
   console.error(fails + " failed")

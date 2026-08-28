@@ -213,6 +213,17 @@ Column {
         root.service.persistSettings({ density: root.compact ? "comfortable" : "compact" })
     }
 
+    Toggle {
+      width: parent.width
+      label: "Download progress"
+      description: "Keep a card on screen while something is downloading"
+      checked: root.service ? root.service.showProgressToast !== false : true
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onClicked: if (root.service)
+        root.service.persistSettings({ showProgressToast: !root.service.showProgressToast })
+    }
+
     PanelSeparator { foreground: root.foreground }
 
     Item {

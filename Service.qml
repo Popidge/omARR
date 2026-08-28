@@ -32,6 +32,8 @@ Item {
   property bool seeding: true
   property bool dirsReady: false
   property var toastQueue: []
+  property string progressDismissedKey: ""
+  property var progressJob: null
 
   readonly property string home: Quickshell.env("HOME")
   readonly property string stateDir: home + "/.local/state/omarchy/omarr"
@@ -45,6 +47,7 @@ Item {
   readonly property int pollSeconds: pluginSettings.pollSeconds
   readonly property int pageSize: pluginSettings.pageSize
   readonly property string density: pluginSettings.density
+  readonly property bool showProgressToast: pluginSettings.showProgressToast !== false
   readonly property bool configured: services.length > 0
 
   property var reqQueue: []
@@ -339,6 +342,35 @@ Item {
     var badge = Model.barBadge(root.snapshots)
     root.badgeCount = badge.count
     root.badgeUrgent = badge.urgent === true
+    if (Model.progressToastStale(root.progressDismissedKey, root.snapshots))
+      root.progressDismissedKey = ""
+    root.progressJob = Model.progressToast(root.snapshots, root.progressDismissedKey)
+    root.ensureProgressArt(root.progressJob)
+  }
+
+  function dismissProgressToast() {
+    if (root.progressJob && root.progressJob.key)
+      root.progressDismissedKey = root.progressJob.key
+    root.progressJob = Model.progressToast(root.snapshots, root.progressDismissedKey)
+  }
+
+  function ensureProgressArt(job) {
+    if (!job || !job.posterId || !job.posterServiceId) return
+    var service = null
+    for (var i = 0; i < root.services.length; i++) {
+      if (root.services[i].id === job.posterServiceId) service = root.services[i]
+    }
+    if (!service || (service.kind !== "sonarr" && service.kind !== "radarr")) return
+    var auth = root.cred(service.id)
+    var header = auth.apiKey ? Model.headerApiKey(auth.apiKey) : ""
+    root.enqueueArt({
+      kind: "poster",
+      serviceId: service.id,
+      url: Model.arrPosterUrl(service.url, service.kind, job.posterId),
+      headerText: header,
+      outputPath: Model.posterCachePath(root.cacheDir, service.id, job.posterId),
+      image: true
+    })
   }
 
   function sendToast(event) {
@@ -1032,6 +1064,14 @@ Item {
   onPanelOpenChanged: if (root.panelOpen) {
     root.clearUnread()
     root.forcePoll()
+  }
+
+  DownloadToast {
+    shell: root.shell
+    service: root
+    job: root.progressJob
+    showToast: root.showProgressToast
+    onDismissRequested: root.dismissProgressToast()
   }
 
   Component.onCompleted: {

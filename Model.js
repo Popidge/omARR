@@ -187,7 +187,8 @@ function defaultSettings() {
     services: [],
     pollSeconds: DEFAULT_POLL_SECONDS,
     pageSize: LIST_PAGE_SIZE,
-    density: "comfortable"
+    density: "comfortable",
+    showProgressToast: true
   }
 }
 
@@ -270,6 +271,7 @@ function normalizeSettings(raw) {
   base.pollSeconds = clampPoll(data.pollSeconds)
   base.pageSize = clampPageSize(data.pageSize)
   base.density = String(data.density || "") === "compact" ? "compact" : "comfortable"
+  base.showProgressToast = data.showProgressToast !== false
   return base
 }
 
@@ -308,6 +310,7 @@ function settingsPayload(settings) {
     pollSeconds: data.pollSeconds,
     pageSize: data.pageSize,
     density: data.density,
+    showProgressToast: data.showProgressToast !== false,
     services: data.services
   }
 }
@@ -1260,6 +1263,111 @@ function isActiveDownload(item) {
   return status.indexOf("download") !== -1 || status === "active" || (item.progress > 0 && item.progress < 1)
 }
 
+function isProgressToastItem(item, snap) {
+  if (!item) return false
+  var kind = snap && snap.kind ? snap.kind : item.kind
+  if (kind !== "sabnzbd" && kind !== "qbittorrent") return false
+  if (kind === "sabnzbd" && snap && snap.paused) return false
+  if (!isActiveDownload(item)) return false
+  var status = String(item.status || "").toLowerCase()
+  if (status === "paused" || status === "pauseddl") return false
+  if (status.indexOf("up") !== -1 && status.indexOf("down") === -1) return false
+  if (status === "queued" || status === "queueddl") return false
+  var progress = Number(item.progress) || 0
+  if (progress >= 1) return false
+  var speed = Number(item.dlspeed) || (snap && Number(snap.speed)) || 0
+  if (speed > 0) return true
+  return progress > 0 && progress < 1
+}
+
+function matchProgressPoster(snapshots, job) {
+  var list = Array.isArray(snapshots) ? snapshots : []
+  var title = String((job && job.title) || "").toLowerCase()
+  var downloadId = String((job && job.itemId) || "")
+  var byTitle = { posterServiceId: "", posterId: "" }
+  for (var i = 0; i < list.length; i++) {
+    var snap = list[i]
+    if (!snap || (snap.kind !== "sonarr" && snap.kind !== "radarr")) continue
+    var queue = Array.isArray(snap.queue) ? snap.queue : []
+    for (var q = 0; q < queue.length; q++) {
+      var row = queue[q]
+      if (!row || !row.posterId) continue
+      if (downloadId && String(row.downloadId || "") === downloadId)
+        return { posterServiceId: String(snap.id || ""), posterId: String(row.posterId) }
+      var t = String(row.title || "").toLowerCase()
+      if (t.length >= 6 && title.indexOf(t) !== -1)
+        byTitle = { posterServiceId: String(snap.id || ""), posterId: String(row.posterId) }
+    }
+  }
+  return byTitle
+}
+
+function progressToastCandidates(snapshots) {
+  var list = Array.isArray(snapshots) ? snapshots : []
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var snap = list[i]
+    if (!snap || (snap.kind !== "sabnzbd" && snap.kind !== "qbittorrent")) continue
+    var queue = Array.isArray(snap.queue) ? snap.queue : []
+    for (var q = 0; q < queue.length; q++) {
+      var item = queue[q]
+      if (!isProgressToastItem(item, snap)) continue
+      var speed = Number(item.dlspeed) || Number(snap.speed) || 0
+      var progress = Number(item.progress) || 0
+      out.push({
+        key: String(snap.id || "") + ":" + String(item.id || ""),
+        itemId: String(item.id || ""),
+        serviceId: String(snap.id || ""),
+        serviceName: String(snap.name || ""),
+        kind: snap.kind,
+        title: String(item.title || ""),
+        progress: progress,
+        status: String(item.status || ""),
+        speed: speed,
+        timeleft: String(item.timeleft || ""),
+        score: speed * 1000 + progress
+      })
+    }
+  }
+  return out
+}
+
+function progressToast(snapshots, dismissedKey) {
+  var skip = String(dismissedKey || "")
+  var best = null
+  var cands = progressToastCandidates(snapshots)
+  for (var i = 0; i < cands.length; i++) {
+    if (cands[i].key === skip) continue
+    if (!best || cands[i].score > best.score) best = cands[i]
+  }
+  if (!best) return null
+  var art = matchProgressPoster(snapshots, best)
+  return {
+    key: best.key,
+    itemId: best.itemId,
+    serviceId: best.serviceId,
+    serviceName: best.serviceName,
+    kind: best.kind,
+    title: best.title,
+    progress: best.progress,
+    status: best.status,
+    speed: best.speed,
+    timeleft: best.timeleft,
+    posterServiceId: art.posterServiceId,
+    posterId: art.posterId
+  }
+}
+
+function progressToastStale(key, snapshots) {
+  var want = String(key || "")
+  if (!want) return true
+  var cands = progressToastCandidates(snapshots)
+  for (var i = 0; i < cands.length; i++) {
+    if (cands[i].key === want) return false
+  }
+  return true
+}
+
 function reuseFeedList(prev, next) {
   var before = Array.isArray(prev) ? prev : []
   var after = Array.isArray(next) ? next : []
@@ -1819,6 +1927,9 @@ if (typeof module !== "undefined" && module.exports) {
     isHealthKind: isHealthKind,
     decideHealth: decideHealth,
     isActiveDownload: isActiveDownload,
+    isProgressToastItem: isProgressToastItem,
+    progressToast: progressToast,
+    progressToastStale: progressToastStale,
     reuseFeedList: reuseFeedList,
     mergeNow: mergeNow,
     fleetLine: fleetLine,
