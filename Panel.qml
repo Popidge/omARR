@@ -607,53 +607,58 @@ Panel {
 
               Column {
                 width: parent.width
-                spacing: Style.space(10)
+                spacing: Style.space(20)
                 visible: !root.detailSnap
                 height: visible ? implicitHeight : 0
 
-                Item {
+                Column {
                   width: parent.width
-                  height: nowHeader.implicitHeight
+                  spacing: Style.space(8)
                   visible: root.nowFeed.warnings && root.nowFeed.warnings.length > 0
+                  height: visible ? implicitHeight : 0
 
                   PanelSectionHeader {
-                    id: nowHeader
                     text: "WARNINGS"
                     foreground: root.urgent
                     fontFamily: root.contentFontFamily
                   }
-                }
 
-                Repeater {
-                  model: root.nowFeed.warnings || []
+                  Repeater {
+                    model: root.nowFeed.warnings || []
 
-                  Text {
-                    required property var modelData
-                    width: parent.width
-                    text: modelData.title + " · " + modelData.body
-                    color: root.urgent
-                    font.family: root.contentFontFamily
-                    font.pixelSize: Style.font.caption
-                    elide: Text.ElideRight
-                    textFormat: Text.PlainText
-                    wrapMode: Text.WordWrap
+                    Text {
+                      required property var modelData
+                      width: parent.width
+                      text: modelData.title + " · " + modelData.body
+                      color: root.urgent
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      textFormat: Text.PlainText
+                      wrapMode: Text.WordWrap
+                    }
                   }
                 }
 
-                PanelSectionHeader {
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
                   visible: root.nowFeed.showQueue && (root.nowFeed.downloads || []).length > 0
-                  text: "DOWNLOADING"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                }
+                  height: visible ? implicitHeight : 0
 
-                Repeater {
-                  model: root.nowFeed.downloads || []
+                  PanelSectionHeader {
+                    text: "DOWNLOADING"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                  }
 
-                  Column {
-                    required property var modelData
-                    width: parent.width
-                    spacing: Style.space(2)
+                  Repeater {
+                    model: root.nowFeed.downloads || []
+
+                    Column {
+                      required property var modelData
+                      width: parent.width
+                      spacing: Style.space(2)
 
                     Text {
                       width: parent.width
@@ -691,6 +696,7 @@ Panel {
                     }
                   }
                 }
+                }
 
                 Text {
                   visible: root.nowFeed.showQueue && (!root.nowFeed.downloads || root.nowFeed.downloads.length === 0)
@@ -703,15 +709,20 @@ Panel {
                   font.italic: true
                 }
 
-                PanelSectionHeader {
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
                   visible: (root.nowFeed.sessions || []).length > 0
-                  text: "NOW PLAYING"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                }
+                  height: visible ? implicitHeight : 0
 
-                Repeater {
-                  model: root.nowFeed.sessions || []
+                  PanelSectionHeader {
+                    text: "NOW PLAYING"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                  }
+
+                  Repeater {
+                    model: root.nowFeed.sessions || []
 
                   Column {
                     required property var modelData
@@ -755,10 +766,15 @@ Panel {
                     }
                   }
                 }
+                }
 
-                Flow {
+                Column {
                   width: parent.width
-                  spacing: Style.space(12)
+                  spacing: Style.space(8)
+
+                  Flow {
+                    width: parent.width
+                    spacing: Style.space(12)
 
                   Repeater {
                     model: root.homeTabModel
@@ -870,17 +886,22 @@ Panel {
                   font.pixelSize: Style.font.caption
                   font.italic: true
                 }
+                }
               }
 
               Column {
                 width: parent.width
-                spacing: Style.space(10)
+                spacing: Style.space(20)
                 visible: !!root.detailSnap
                 height: visible ? implicitHeight : 0
 
-                Item {
+                Column {
                   width: parent.width
-                  height: Math.max(detailHeader.implicitHeight, openBtn.implicitHeight, detailIcon.height)
+                  spacing: Style.space(8)
+
+                  Item {
+                    width: parent.width
+                    height: Math.max(detailHeader.implicitHeight, openBtn.implicitHeight, detailIcon.height)
 
                   ServiceIcon {
                     id: detailIcon
@@ -930,18 +951,24 @@ Panel {
                   wrapMode: Text.WordWrap
                   textFormat: Text.PlainText
                 }
-
-                PanelSectionHeader {
-                  visible: root.detailSnap && root.detailSnap.kind === "plex"
-                    && (root.detailSnap.sessions || []).length > 0
-                  text: "NOW PLAYING"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
                 }
 
-                Repeater {
-                  model: root.detailSnap && root.detailSnap.kind === "plex"
-                    ? (root.detailSnap.sessions || []) : []
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
+                  visible: root.detailSnap && root.detailSnap.kind === "plex"
+                    && (root.detailSnap.sessions || []).length > 0
+                  height: visible ? implicitHeight : 0
+
+                  PanelSectionHeader {
+                    text: "NOW PLAYING"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                  }
+
+                  Repeater {
+                    model: root.detailSnap && root.detailSnap.kind === "plex"
+                      ? (root.detailSnap.sessions || []) : []
 
                   Column {
                     required property var modelData
@@ -985,18 +1012,24 @@ Panel {
                     }
                   }
                 }
+                }
 
-                PanelSectionHeader {
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
                   visible: root.detailSnap && root.detailSnap.kind === "plex"
                     && (root.detailSnap.onDeck || []).length > 0
-                  text: "ON DECK"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                }
+                  height: visible ? implicitHeight : 0
 
-                Repeater {
-                  model: root.detailSnap && root.detailSnap.kind === "plex"
-                    ? (root.detailSnap.onDeck || []) : []
+                  PanelSectionHeader {
+                    text: "ON DECK"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                  }
+
+                  Repeater {
+                    model: root.detailSnap && root.detailSnap.kind === "plex"
+                      ? (root.detailSnap.onDeck || []) : []
 
                   CalendarCard {
                     required property var modelData
@@ -1007,31 +1040,45 @@ Panel {
                     fontFamily: root.contentFontFamily
                   }
                 }
+                }
 
-                PanelSectionHeader {
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
                   visible: root.detailSnap && root.detailSnap.kind === "plex"
                     && (root.detailSnap.recent || []).length > 0
-                  text: "RECENTLY ADDED"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                }
+                  height: visible ? implicitHeight : 0
 
-                Repeater {
-                  model: root.detailSnap && root.detailSnap.kind === "plex"
-                    ? (root.detailSnap.recent || []) : []
-
-                  CalendarCard {
-                    required property var modelData
-                    item: modelData
-                    posterUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
-                    fanartUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
-                    compact: root.compact
+                  PanelSectionHeader {
+                    text: "RECENTLY ADDED"
+                    foreground: root.contentForeground
                     fontFamily: root.contentFontFamily
+                  }
+
+                  Repeater {
+                    model: root.detailSnap && root.detailSnap.kind === "plex"
+                      ? (root.detailSnap.recent || []) : []
+
+                    CalendarCard {
+                      required property var modelData
+                      item: modelData
+                      posterUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
+                      fanartUrl: root.detailSnap ? root.plexSource(root.detailSnap.id, modelData.id) : ""
+                      compact: root.compact
+                      fontFamily: root.contentFontFamily
+                    }
                   }
                 }
 
-                Repeater {
-                  model: root.detailSnap && root.detailSnap.kind === "plex" ? [] : root.detailQueueModel
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
+                  visible: root.detailSnap && root.detailSnap.kind !== "plex"
+                    && ((root.detailQueueModel || []).length > 0 || root.detailPager.hasPrev || root.detailPager.hasNext)
+                  height: visible ? implicitHeight : 0
+
+                  Repeater {
+                    model: root.detailSnap && root.detailSnap.kind === "plex" ? [] : root.detailQueueModel
 
                   CursorSurface {
                     id: qRow
@@ -1153,18 +1200,24 @@ Panel {
                       root.service.turnQueuePage(root.detailSnap.id, 1)
                   }
                 }
-
-                PanelSectionHeader {
-                  visible: root.detailSnap && root.detailSnap.kind === "sabnzbd"
-                    && (root.detailSnap.activity || []).length > 0
-                  text: "HISTORY"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
                 }
 
-                Repeater {
-                  model: root.detailSnap && root.detailSnap.kind === "sabnzbd"
-                    ? (root.detailSnap.activity || []) : []
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
+                  visible: root.detailSnap && root.detailSnap.kind === "sabnzbd"
+                    && (root.detailSnap.activity || []).length > 0
+                  height: visible ? implicitHeight : 0
+
+                  PanelSectionHeader {
+                    text: "HISTORY"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                  }
+
+                  Repeater {
+                    model: root.detailSnap && root.detailSnap.kind === "sabnzbd"
+                      ? (root.detailSnap.activity || []) : []
 
                   Column {
                     required property var modelData
@@ -1192,10 +1245,18 @@ Panel {
                     }
                   }
                 }
+                }
 
-                Repeater {
-                  model: root.detailSnap && root.detailSnap.kind !== "plex" && root.detailSnap.calendar
-                    ? Model.groupedCalendar(root.detailSnap.calendar) : []
+                Column {
+                  width: parent.width
+                  spacing: Style.space(8)
+                  visible: root.detailSnap && root.detailSnap.kind !== "plex"
+                    && root.detailSnap.calendar && root.detailSnap.calendar.length > 0
+                  height: visible ? implicitHeight : 0
+
+                  Repeater {
+                    model: root.detailSnap && root.detailSnap.kind !== "plex" && root.detailSnap.calendar
+                      ? Model.groupedCalendar(root.detailSnap.calendar) : []
 
                   Column {
                     required property var modelData
@@ -1226,6 +1287,7 @@ Panel {
                       }
                     }
                   }
+                }
                 }
               }
             }
