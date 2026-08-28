@@ -920,6 +920,24 @@ var hashed = Model.progressToast([
 ])
 checkEqual(hashed.posterId, "44", "progress toast matches torrent hash")
 
+checkEqual(Model.DOWNLOAD_POLL_MS, 2000, "downloader poll ms")
+check(Model.downloaderBusy([]) === false, "downloader idle empty")
+check(Model.downloaderBusy([sabProgressSnap([{
+  id: "nzo1", title: "Show.S01E01", status: "downloading", progress: 0.4, kind: "sabnzbd"
+}])]) === true, "downloader busy sab")
+check(Model.downloaderBusy([sabProgressSnap([{
+  id: "nzo1", title: "Show.S01E01", status: "downloading", progress: 0.4, kind: "sabnzbd"
+}], { paused: true })]) === false, "downloader idle paused sab")
+check(Model.downloaderBusy([qbitSnap]) === true, "downloader busy qbit")
+check(Model.downloaderBusy([{
+  id: "qbit", kind: "qbittorrent", name: "qBittorrent",
+  queue: [qbitItem("seed", "Seeded", "uploading", 1, 0)]
+}]) === false, "downloader idle seeding")
+check(Model.downloaderBusy([{
+  id: "son", kind: "sonarr", name: "Sonarr",
+  queue: [{ id: "1", title: "Show", status: "downloading", progress: 0.4, kind: "sonarr" }]
+}]) === false, "downloader idle arr")
+
 if (fails) {
   console.error(fails + " failed")
   process.exit(1)

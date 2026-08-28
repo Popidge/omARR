@@ -49,6 +49,7 @@ Item {
   readonly property string density: pluginSettings.density
   readonly property bool showProgressToast: pluginSettings.showProgressToast !== false
   readonly property bool configured: services.length > 0
+  readonly property bool downloaderBusy: Model.downloaderBusy(root.snapshots)
 
   property var reqQueue: []
   property var currentReq: null
@@ -780,11 +781,13 @@ Item {
     }
   }
 
-  function enqueuePoll() {
+  function enqueuePoll(scope) {
     if (root.reqQueue.length) return
+    var downloaders = scope === "downloaders"
     for (var i = 0; i < root.services.length; i++) {
       var svc = root.services[i]
       if (!Model.isHttpUrl(svc.url)) continue
+      if (downloaders && svc.kind !== "sabnzbd" && svc.kind !== "qbittorrent") continue
       if (svc.kind === "sonarr" || svc.kind === "radarr") root.enqueueArr(svc)
       else if (svc.kind === "sabnzbd") root.enqueueSab(svc)
       else if (svc.kind === "qbittorrent") root.enqueueQbit(svc)
@@ -796,6 +799,12 @@ Item {
   function forcePoll() {
     root.rebuildSnapshots()
     if (!root.reqQueue.length && !apiProc.running) root.enqueuePoll()
+    root.pump()
+  }
+
+  function forceDownloaderPoll() {
+    if (root.reqQueue.length || apiProc.running) return
+    root.enqueuePoll("downloaders")
     root.pump()
   }
 
@@ -1058,6 +1067,13 @@ Item {
     running: root.panelOpen && root.dirsReady
     repeat: true
     onTriggered: if (!root.reqQueue.length && !apiProc.running) root.forcePoll()
+  }
+
+  Timer {
+    interval: Model.DOWNLOAD_POLL_MS
+    running: root.dirsReady && root.downloaderBusy
+    repeat: true
+    onTriggered: root.forceDownloaderPoll()
   }
 
   onServicesChanged: root.rebuildSnapshots()

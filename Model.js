@@ -3,6 +3,7 @@ var API_MAX_BYTES = 2 * 1024 * 1024
 var IMAGE_MAX_BYTES = 8 * 1024 * 1024
 var SEEN_LIMIT = 400
 var DEFAULT_POLL_SECONDS = 30
+var DOWNLOAD_POLL_MS = 2000
 var LIST_PAGE_SIZE = 20
 var PAGE_SIZE_MIN = 5
 var PAGE_SIZE_MAX = 50
@@ -1368,6 +1369,10 @@ function progressToastStale(key, snapshots) {
   return true
 }
 
+function downloaderBusy(snapshots) {
+  return progressToastCandidates(snapshots).length > 0
+}
+
 function reuseFeedList(prev, next) {
   var before = Array.isArray(prev) ? prev : []
   var after = Array.isArray(next) ? next : []
@@ -1831,6 +1836,7 @@ if (typeof module !== "undefined" && module.exports) {
     LIST_PAGE_SIZE: LIST_PAGE_SIZE,
     PAGE_SIZE_MIN: PAGE_SIZE_MIN,
     PAGE_SIZE_MAX: PAGE_SIZE_MAX,
+    DOWNLOAD_POLL_MS: DOWNLOAD_POLL_MS,
     KINDS: KINDS,
     KIND_DEFAULTS: KIND_DEFAULTS,
     curlBounds: curlBounds,
@@ -1930,6 +1936,7 @@ if (typeof module !== "undefined" && module.exports) {
     isProgressToastItem: isProgressToastItem,
     progressToast: progressToast,
     progressToastStale: progressToastStale,
+    downloaderBusy: downloaderBusy,
     reuseFeedList: reuseFeedList,
     mergeNow: mergeNow,
     fleetLine: fleetLine,
