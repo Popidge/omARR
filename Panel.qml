@@ -14,6 +14,7 @@ Panel {
   property var service: null
   property bool showSettings: false
   property bool pendingAdd: false
+  property bool pendingFleet: false
   property int selectedIndex: -1
   property string detailId: ""
   property string homeTab: "ondeck"
@@ -125,10 +126,21 @@ Panel {
 
   function openAddService() {
     root.pendingAdd = true
+    root.pendingFleet = false
     root.showSettings = true
     if (settingsLoader.item) {
       settingsLoader.item.startAdd()
       root.pendingAdd = false
+    }
+  }
+
+  function openFleetSettings() {
+    root.pendingFleet = true
+    root.pendingAdd = false
+    root.showSettings = true
+    if (settingsLoader.item) {
+      settingsLoader.item.showFleet()
+      root.pendingFleet = false
     }
   }
 
@@ -349,16 +361,28 @@ Panel {
             width: parent.width
             height: Math.max(0, parent.height - headerBar.height - parent.spacing)
 
-            PanelActionButton {
+            Row {
               z: 2
               anchors.left: parent.left
               anchors.bottom: parent.bottom
               visible: !root.showSettings
-              iconText: "󰐕"
-              tooltipText: "Add service"
-              foreground: root.contentForeground
-              fontFamily: root.contentFontFamily
-              onClicked: root.openAddService()
+              spacing: Style.space(2)
+
+              PanelActionButton {
+                iconText: "󰐕"
+                tooltipText: "Add service"
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                onClicked: root.openAddService()
+              }
+
+              PanelActionButton {
+                iconText: "󰍜"
+                tooltipText: "Fleet"
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                onClicked: root.openFleetSettings()
+              }
             }
 
             Flickable {
@@ -387,9 +411,14 @@ Panel {
                 active: root.showSettings
                 visible: active
                 sourceComponent: settingsComp
-                onLoaded: if (root.pendingAdd) {
-                  item.startAdd()
-                  root.pendingAdd = false
+                onLoaded: {
+                  if (root.pendingAdd) {
+                    item.startAdd()
+                    root.pendingAdd = false
+                  } else if (root.pendingFleet) {
+                    item.showFleet()
+                    root.pendingFleet = false
+                  }
                 }
               }
             }

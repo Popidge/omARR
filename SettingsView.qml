@@ -79,6 +79,12 @@ Column {
     mode = "edit"
   }
 
+  function showFleet() {
+    resetForm()
+    mode = "list"
+    listTab = "fleet"
+  }
+
   function startEdit(row) {
     if (!row) return
     listTab = "fleet"
