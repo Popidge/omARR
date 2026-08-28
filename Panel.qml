@@ -265,7 +265,7 @@ Panel {
 
               OmarrIcon {
                 id: headerIcon
-                iconSize: Style.font.display
+                iconSize: Style.font.heading
                 color: root.contentForeground
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
